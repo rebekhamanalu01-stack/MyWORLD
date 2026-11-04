@@ -562,23 +562,14 @@ const VERSES = [
   { ref: "Roma 8:19-21", r: "Pemulihan ciptaan adalah harapan bersama yang kita kerjakan lewat pilihan sehari-hari." },
 ];
 
-function AyatQuote({ verseRef }) {
-  const text = AYAT_TB[verseRef];
-  return (
-    <>
-      {text ? <span className="block font-serif text-sm italic leading-relaxed text-slate-800">“{text}”</span> : null}
-      <span className={`block text-[11px] font-bold ${text ? "mt-1" : ""}`} style={{ color: EMERALD }}>{text ? "— " : ""}{verseRef} (TB)</span>
-    </>
-  );
-}
 
 const MISSIONS = [
-  { id: 1, t: "Bawa tumbler dan tas belanja sendiri", d: "Kurangi plastik sekali pakai hari ini", p: 15, icon: ShoppingBag, v: "Mazmur 24:1", r: "Membawa wadah sendiri adalah cara sederhana mengakui bahwa kita dipercaya menjaga, bukan memiliki." },
-  { id: 2, t: "Matikan lampu dan perangkat yang tak terpakai", d: "Hemat listrik di rumah dan kampus", p: 10, icon: Sparkles, v: "Lukas 16:10", r: "Kesetiaan sering diuji lewat hal kecil yang tak dilihat siapa pun, seperti lampu yang tak lagi perlu menyala." },
-  { id: 3, t: "Habiskan makananmu, tanpa sisa", d: "Syukuri berkat dengan tidak membuang pangan", p: 15, icon: Leaf, v: "Yohanes 6:12", r: "Menghabiskan makanan adalah cara bersyukur yang nyata atas berkat di meja kita." },
-  { id: 4, t: "Bersihkan 20 email atau berkas yang tak perlu", d: "Tercentang otomatis begitu 20 item selesai dibersihkan di tab Beranda", p: 20, icon: Mail, v: "Lukas 12:15", r: "Menimbun data yang tak terpakai adalah keserakahan halus yang ikut membebani bumi." },
-  { id: 5, t: "Tanam atau siram satu tanaman", d: "Rawat satu tanaman, sekecil apa pun", p: 25, icon: Sprout, v: "Kejadian 2:15", r: "Panggilan merawat ciptaan dimulai dari satu tanaman di dekatmu." },
-  { id: 6, t: "Berjalan kaki atau naik angkutan umum", d: "Satu perjalanan tanpa kendaraan pribadi", p: 15, icon: Bike, v: "Mazmur 19:2", r: "Berjalan perlahan memberi ruang untuk melihat dan bersyukur atas ciptaan di sekitar kita." },
+  { id: 1, t: "Bawa tumbler dan tas belanja sendiri", d: "Kurangi plastik sekali pakai hari ini", p: 15, icon: ShoppingBag },
+  { id: 2, t: "Matikan lampu dan perangkat yang tak terpakai", d: "Hemat listrik di rumah dan kampus", p: 10, icon: Sparkles },
+  { id: 3, t: "Habiskan makananmu, tanpa sisa", d: "Syukuri berkat dengan tidak membuang pangan", p: 15, icon: Leaf },
+  { id: 4, t: "Bersihkan 20 email atau berkas yang tak perlu", d: "Tercentang otomatis begitu 20 item selesai dibersihkan di tab Beranda", p: 20, icon: Mail },
+  { id: 5, t: "Tanam atau siram satu tanaman", d: "Rawat satu tanaman, sekecil apa pun", p: 25, icon: Sprout },
+  { id: 6, t: "Berjalan kaki atau naik angkutan umum", d: "Satu perjalanan tanpa kendaraan pribadi", p: 15, icon: Bike },
 ];
 
 /* ---------- TAB 4: PETA EKOLOGI (React Leaflet + OpenStreetMap) ---------- */
@@ -591,14 +582,17 @@ const GEO_CATS = [
 ];
 const STATUS_COLOR = { Kritis: "#D92D20", Waspada: "#F79009", Aman: EMERALD };
 const GEO_POINTS = [
-  { id: 1, name: "Jakarta Pusat", cat: "udara", status: "Kritis", lat: -6.18, lng: 106.83, desc: "Udara sering tidak sehat bagi kelompok sensitif pada jam sibuk. Asap kendaraan dan industri jadi pemicu utama; mengurangi kendaraan pribadi membantu menurunkannya." },
-  { id: 2, name: "Medan", cat: "udara", status: "Waspada", lat: 3.59, lng: 98.67, desc: "Kualitas udara naik turun mengikuti kepadatan lalu lintas dan pembakaran terbuka. Pantau sebelum beraktivitas di luar ruangan." },
-  { id: 3, name: "Sungai Citarum", cat: "air", status: "Kritis", lat: -6.98, lng: 107.62, desc: "Beban limbah domestik dan industri menurunkan kualitas air dan mengancam kehidupan di sepanjang aliran." },
-  { id: 4, name: "Danau Toba, Parapat", cat: "air", status: "Waspada", lat: 2.67, lng: 98.93, desc: "Sisa pakan dan limbah rumah tangga memicu pertumbuhan alga yang menurunkan kejernihan air danau." },
-  { id: 5, name: "Hutan Kalimantan Tengah", cat: "hutan", status: "Kritis", lat: -2.2, lng: 113.9, desc: "Pembukaan lahan mengurangi tutupan hutan dan melepas karbon yang tersimpan selama puluhan tahun." },
-  { id: 6, name: "Mangrove Belawan", cat: "hutan", status: "Aman", lat: 3.78, lng: 98.7, desc: "Contoh kawasan penghijauan: akar mangrove menahan abrasi, menyimpan karbon, dan menjadi rumah bagi biota pesisir." },
-  { id: 7, name: "TPA Bantar Gebang", cat: "limbah", status: "Kritis", lat: -6.34, lng: 106.99, desc: "Timbunan sampah yang sangat besar melepas gas metana dan mencemari tanah serta air sekitar." },
-  { id: 8, name: "Pesisir Teluk Jakarta", cat: "limbah", status: "Waspada", lat: -6.1, lng: 106.78, desc: "Sampah plastik terbawa arus sungai ke pesisir, mengganggu nelayan dan biota laut." },
+  // Titik simulasi edukatif untuk wilayah Tapanuli Utara (koordinat perkiraan, bukan hasil pengukuran sensor)
+  { id: 1, name: "Pusat Kota Tarutung", cat: "udara", status: "Waspada", lat: 2.0167, lng: 98.9667, desc: "Asap kendaraan dan pembakaran sampah terbuka di jam sibuk membuat kualitas udara naik turun. Kurangi pakai motor untuk jarak dekat dan jangan bakar sampah." },
+  { id: 2, name: "Sipoholon", cat: "udara", status: "Aman", lat: 2.0500, lng: 98.9300, desc: "Udara pegunungan yang relatif bersih dan sejuk dengan lalu lintas ringan. Pertahankan dengan menjaga pepohonan dan tidak membakar lahan." },
+  { id: 3, name: "Hutan Siatas Barita", cat: "hutan", status: "Aman", lat: 2.0000, lng: 99.0000, desc: "Kawasan hutan dan perbukitan yang masih rimbun. Tutupan pohonnya menahan longsor, menjaga mata air, dan menyimpan karbon." },
+  { id: 4, name: "Hutan Adiankoting", cat: "hutan", status: "Aman", lat: 1.9700, lng: 98.9000, desc: "Tegakan hutan dan kebun campuran yang masih terjaga di lereng. Menanam pohon pelindung membantu mempertahankan tanah dan sumber air." },
+  { id: 5, name: "Lereng Gundul Adiankoting", cat: "hutan", status: "Kritis", lat: 1.9450, lng: 98.8700, desc: "Titik simulasi lereng yang pohonnya banyak dibuka. Tanah mudah longsor saat hujan deras dan lapisan tanah suburnya terbawa air." },
+  { id: 6, name: "Aek Sigeaon, Tarutung", cat: "air", status: "Waspada", lat: 2.0100, lng: 98.9750, desc: "Limbah rumah tangga dan sampah yang terbuang ke sungai membuat air keruh di beberapa ruas. Pilah sampah dan jangan buang ke aliran sungai." },
+  { id: 7, name: "Sumber Mata Air Siatas Barita", cat: "air", status: "Aman", lat: 2.0250, lng: 98.9900, desc: "Mata air di kawasan berhutan yang masih jernih. Hutan di hulu adalah kunci agar debit dan kualitas airnya tetap terjaga." },
+  { id: 8, name: "Hilir Sungai Sipoholon", cat: "air", status: "Kritis", lat: 2.0650, lng: 98.9200, desc: "Titik simulasi aliran dengan penumpukan sampah plastik dan limbah ternak yang menurunkan kualitas air bagi warga di hilir." },
+  { id: 9, name: "Pasar Tarutung", cat: "limbah", status: "Kritis", lat: 2.0200, lng: 98.9600, desc: "Sampah organik dan plastik pasar menumpuk cepat dan sering terbuang sembarangan. Pemilahan serta pengomposan sisa sayur bisa mengurangi timbunan." },
+  { id: 10, name: "Permukiman Sipoholon", cat: "limbah", status: "Waspada", lat: 2.0400, lng: 98.9450, desc: "Pengelolaan sampah rumah tangga belum merata sehingga sebagian dibakar atau dibuang ke kebun. Mulai dari memilah sampah organik dan anorganik." },
 ];
 const PIN_ICONS = Object.fromEntries(Object.entries(STATUS_COLOR).map(([k, c]) => [k, L.divIcon({
   className: "",
@@ -612,7 +606,7 @@ const USER_ICON = L.divIcon({
   iconSize: [18, 18], iconAnchor: [9, 9], popupAnchor: [0, -12],
 });
 const DEFAULT_CENTER = [2.0031, 98.9640]; // Tapanuli Utara
-const DEFAULT_ZOOM = 10;
+const DEFAULT_ZOOM = 11; // pas untuk Tarutung, Sipoholon, Adiankoting, dan Siatas Barita
 
 function MapSync({ active }) {
   const map = useMap();
@@ -676,7 +670,7 @@ function EcoMap({ active, userPos }) {
             </span>
           ))}
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Ketuk penanda untuk melihat detail lokasi. Titik dan status pada peta ini berasal dari agregasi data ekologi awal dan belum terhubung langsung ke sensor atau instansi resmi.</p>
+        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Ketuk penanda untuk melihat detail lokasi. Titik dan status pada peta ini adalah simulasi edukatif untuk wilayah Tapanuli Utara, dengan koordinat perkiraan. Belum terhubung ke sensor atau instansi resmi.</p>
       </Card>
     </div>
   );
@@ -885,12 +879,12 @@ function Missions({ days, setDays, today, msLeft }) {
 
       <Card className="!p-4">
         <p className="text-xs font-semibold text-slate-500">Renungan hari ini</p>
-        <div className="mt-2"><AyatQuote verseRef={verse.ref} /></div>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">{verse.r}</p>
+        <p className="mt-2 font-serif text-[15px] italic leading-relaxed text-slate-800">“{AYAT_TB[verse.ref] || verse.r}”</p>
+        <p className="mt-2 text-[11px] font-bold" style={{ color: EMERALD }}>— {verse.ref} (TB)</p>
       </Card>
 
       <div className="space-y-3">
-        {MISSIONS.map(({ id, t, d, p, icon: Icon, v, r }, idx) => {
+        {MISSIONS.map(({ id, t, d, p, icon: Icon }) => {
           const on = done.has(id);
           const isNext = !on && MISSIONS.find((m) => !done.has(m.id))?.id === id;
           return (
@@ -901,14 +895,9 @@ function Missions({ days, setDays, today, msLeft }) {
                 <Icon size={22} color={on ? "#fff" : EMERALD} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[11px] font-bold tracking-wide" style={{ color: EMERALD }}>MISI {idx + 1}{isNext ? " · BERIKUTNYA" : on ? " · SELESAI" : ""}</span>
-                <span className={`mt-0.5 block text-sm font-extrabold transition-colors ${on ? "text-slate-400 line-through" : "text-slate-900"}`}>{t}</span>
+                <span className={`block text-sm font-extrabold transition-colors ${on ? "text-slate-400 line-through" : "text-slate-900"}`}>{t}</span>
                 <span className="mt-0.5 block text-xs leading-snug text-slate-500">{d}</span>
                 <span className="mt-1 block text-xs font-bold" style={{ color: EMERALD }}>+{p} poin · {id === 4 ? "dampaknya dihitung di tab Beranda" : `hemat ±${IMPACT_G[id]} g CO₂e`}</span>
-                <span className="mt-3 block rounded-[1.5rem] bg-emerald-50/60 px-4 py-3 transition-opacity" style={{ opacity: on ? 0.7 : 1 }}>
-                  <AyatQuote verseRef={v} />
-                  <span className="mt-2 block text-xs leading-relaxed text-slate-600">{r}</span>
-                </span>
               </span>
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all"
                 style={{ borderColor: on ? EMERALD : "#D0D5DD", background: on ? EMERALD : "#fff" }}>
@@ -950,7 +939,12 @@ const AppHeader = memo(function AppHeader({ title, grams, pct }) {
       <div className="flex items-center gap-3">
         <Logo size={48} />
         <div>
-          <h1 className="bg-gradient-to-r from-emerald-600 to-cyan-500 bg-clip-text text-xl font-black leading-tight tracking-tight text-transparent">MyWORLD</h1>
+          <h1 className="flex items-end leading-none" aria-label="MyWORLD">
+            <span className="bg-gradient-to-r from-emerald-600 to-cyan-500 bg-clip-text pb-1 pr-1 text-[1.65rem] font-normal tracking-wide text-transparent"
+              style={{ fontFamily: "'Pacifico', 'Dancing Script', cursive" }}>MyWORLD</span>
+            <span aria-hidden="true" className="mb-2 ml-0.5 h-2 w-2 shrink-0 rounded-full"
+              style={{ background: "radial-gradient(circle at 35% 35%, #FFD84D, #FB923C)" }} />
+          </h1>
           <p className="text-xs font-medium text-slate-500">{title}</p>
         </div>
       </div>
@@ -998,7 +992,7 @@ function AboutSheet({ onClose }) {
             <h3 className="mt-4 font-extrabold text-slate-900">Sumber dan batas angka</h3>
             <p>Semua angka adalah estimasi edukatif untuk menumbuhkan kesadaran, bukan audit karbon. Faktor emisi memakai rata-rata yang lazim dipakai: sekitar 4 g CO₂e per email standar (Mike Berners-Lee), serta kisaran emisi listrik dan transportasi dari rujukan umum seperti IPCC dan IEA. Hasil nyata berbeda untuk tiap orang.</p>
             <h3 className="mt-4 font-extrabold text-slate-900">Pemrosesan Lokal</h3>
-            <p>Tanpa sambungan Gmail, data diproses di perangkatmu tanpa mengirim apa pun ke server. Pemindaian berkas di perangkat (foto ganda, unduhan, cache) belum bisa dilakukan dari browser dan masuk rencana pengembangan versi Android. Data pada Peta Ekologi berasal dari agregasi data ekologi awal.</p>
+            <p>Tanpa sambungan Gmail, data diproses di perangkatmu tanpa mengirim apa pun ke server. Pemindaian berkas di perangkat (foto ganda, unduhan, cache) belum bisa dilakukan dari browser dan masuk rencana pengembangan versi Android. Titik pada Peta Ekologi adalah simulasi edukatif wilayah Tapanuli Utara, bukan data sensor atau instansi resmi.</p>
             <p className="mt-4 text-xs text-slate-500">Kutipan ayat memakai Alkitab Terjemahan Baru (TB), © Lembaga Alkitab Indonesia.</p>
             <button onClick={() => onClose()} className="mt-5 w-full rounded-full py-3.5 text-base font-extrabold text-white" style={{ background: EMERALD }}>Tutup</button>
           </div>
@@ -1027,7 +1021,7 @@ export default function App() {
     const link = document.createElement("link");
     link.id = "nunito-font";
     link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap";
+    link.href = "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Pacifico&family=Dancing+Script:wght@600;700&display=swap";
     document.head.appendChild(link);
   }, []);
   useEffect(() => {
