@@ -553,6 +553,13 @@ const AYAT_TB = {
   "Yohanes 6:12": "",
   "Lukas 12:15": "",
   "Mazmur 19:2": "",
+  "Imamat 25:23": "",
+  "Ulangan 20:19": "",
+  "Ayub 12:7-10": "",
+  "Yesaya 24:4-5": "",
+  "Matius 6:26": "",
+  "Kolose 1:15-20": "",
+  "Wahyu 11:18": "",
 };
 
 const VERSES = [
@@ -560,6 +567,16 @@ const VERSES = [
   { ref: "Kejadian 2:15", r: "Merawat bumi bukan tambahan, melainkan bagian dari panggilan sejak semula." },
   { ref: "Amsal 12:10", r: "Kepedulian kepada makhluk lain mencerminkan hati yang benar." },
   { ref: "Roma 8:19-21", r: "Pemulihan ciptaan adalah harapan bersama yang kita kerjakan lewat pilihan sehari-hari." },
+  { ref: "Imamat 25:23", r: "Tanah tidak sepenuhnya milik kita. Kita hanyalah penumpang dan penggarap, jadi rawatlah agar layak diwariskan." },
+  { ref: "Ulangan 20:19", r: "Bahkan di tengah perang, pohon buah dilindungi. Apalagi di masa damai, pohon layak kita jaga." },
+  { ref: "Ayub 12:7-10", r: "Hewan, burung, dan bumi sendiri menjadi guru yang bersaksi tentang tangan Tuhan. Mari belajar mendengarkan mereka." },
+  { ref: "Yesaya 24:4-5", r: "Ketika manusia merusak bumi, bumi pun berduka. Kerusakan alam adalah soal iman dan tanggung jawab, bukan sekadar teknis." },
+  { ref: "Matius 6:26", r: "Tuhan memelihara burung-burung di udara. Jika Ia peduli pada mereka, kita pun terpanggil ikut menjaga rumah mereka." },
+  { ref: "Kolose 1:15-20", r: "Kristus mendamaikan segala sesuatu, termasuk seluruh ciptaan. Karya penebusan-Nya mencakup bumi dan isinya." },
+  { ref: "Yohanes 6:12", r: "Yesus meminta sisa makanan dikumpulkan agar tidak ada yang terbuang. Menghabiskan makanan adalah bentuk syukur." },
+  { ref: "Lukas 12:15", r: "Hidup bukan ditentukan oleh banyaknya harta. Hidup sederhana dan tidak berlebihan menolong bumi bernapas lega." },
+  { ref: "Lukas 16:10", r: "Setia dalam perkara kecil seperti membuang sampah pada tempatnya adalah latihan setia dalam perkara besar." },
+  { ref: "Wahyu 11:18", r: "Tuhan akan membinasakan mereka yang membinasakan bumi. Merusak ciptaan adalah hal serius di hadapan-Nya." },
 ];
 
 
@@ -912,11 +929,11 @@ const TABS = [
 const AppHeader = memo(function AppHeader({ title, grams, pct }) {
   return (
     <header className="mb-5 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <Logo size={48} />
-        <div>
+      <div className="flex min-w-0 items-center gap-2.5">
+        <Logo size={40} />
+        <div className="min-w-0">
           <h1 className="flex items-end leading-none" aria-label="MyWORLD">
-            <span className="bg-gradient-to-r from-emerald-600 to-cyan-500 bg-clip-text pb-1 pr-1 text-[1.2rem] font-normal tracking-normal text-transparent"
+            <span className="bg-gradient-to-r from-emerald-600 to-cyan-500 bg-clip-text pb-1 pr-1 text-[0.95rem] font-normal tracking-normal text-transparent"
               style={{ fontFamily: "'Pacifico', 'Dancing Script', cursive" }}>MyWORLD</span>
             <span aria-hidden="true" className="mb-[0.45rem] ml-0.5 h-1.5 w-1.5 shrink-0 rounded-full"
               style={{ background: "radial-gradient(circle at 35% 35%, #FFD84D, #FB923C)" }} />
@@ -977,7 +994,15 @@ function AboutSheet({ onClose }) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState("home");
+  // Tab aktif disimpan di URL hash, jadi saat halaman di-refresh tetap di tab yang sama
+  const [tab, setTabState] = useState(() => {
+    const h = window.location.hash.replace("#", "");
+    return TABS.some((t) => t.key === h) ? h : "home";
+  });
+  const setTab = useCallback((k) => {
+    setTabState(k);
+    try { window.history.replaceState(null, "", `#${k}`); } catch (e) { /* abaikan */ }
+  }, []);
   const [hyg, setHyg] = useState(loadHyg);
   const [days, setDays] = useState(loadDays);
   const { today, msLeft } = useClock();
