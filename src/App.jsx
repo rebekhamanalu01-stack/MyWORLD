@@ -369,9 +369,9 @@ function CarbonBanner() {
       <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold">
         <Info size={12} /> Tahukah kamu?
       </span>
-      <h2 className="mt-3 text-xl font-extrabold leading-snug">Memori digital punya jejak karbon</h2>
+      <h2 className="mt-3 text-xl font-extrabold leading-snug">Sesederhana email masuk pun bisa ikut membebani bumi</h2>
       <p className="mt-2 text-sm leading-relaxed text-emerald-50">
-        Datamu tidak melayang di awan. Ia tersimpan di server fisik raksasa yang menyala dan didinginkan 24 jam nonstop. Semakin banyak data menumpuk, semakin besar listrik dan emisi karbon yang dibutuhkan.
+        Setiap email yang kamu simpan, foto dobel, dan berkas lama berada di server fisik yang menyala dan didinginkan 24 jam nonstop. Makin menumpuk, makin besar listrik dan emisi karbon yang dibutuhkan. Menghapus yang tak perlu adalah cara kecil yang nyata untuk merawat bumi.
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         {["Listrik 24 jam", "Pendingin nonstop", "Emisi karbon"].map((t) => (
@@ -775,6 +775,35 @@ function useWeather(pos) {
 
 const isRainy = (d) => d.rain > 0 || (d.code >= 51 && d.code <= 99);
 
+// Saran hemat energi dan ramah lingkungan, menyesuaikan cuaca di lokasi saat ini
+function weatherTips(d) {
+  const rainy = isRainy(d);
+  const t = d.temp;
+  const tips = [];
+
+  if (t <= 24) tips.push("Cuaca sejuk. Cukup buka jendela atau pakai kipas, tidak perlu AC. Hemat listrik dan emisi karbon.");
+  else if (t < 30) tips.push("Suhu masih nyaman. Pakai kipas dulu, dan kalau perlu AC, atur di 25–26°C saja.");
+  else tips.push("Cuaca panas. Kalau memakai AC, atur di 25–26°C, tutup tirai di siang hari, dan bantu dengan kipas supaya AC tidak bekerja berat.");
+
+  if (rainy) {
+    tips.push("Sedang hujan. Tampung air hujan untuk menyiram tanaman atau mencuci teras, jadi tidak boros air bersih.");
+    tips.push("Bawa jas hujan atau payung. Tetap bisa berjalan kaki atau naik angkutan umum tanpa kendaraan pribadi.");
+    tips.push("Jangan buang sampah ke selokan atau sungai. Sampah yang terbawa air hujan bisa menyumbat aliran dan memicu banjir.");
+    tips.push("Jemur pakaian di dalam ruangan dengan sirkulasi udara yang baik, tidak perlu mesin pengering.");
+  } else {
+    tips.push("Hari tidak hujan. Jemur pakaian di bawah matahari dan matikan lampu di siang hari karena cahaya alami sudah cukup.");
+    if (d.uv != null && d.uv >= 6) tips.push("Sinar UV cukup tinggi. Pakai topi atau payung saat di luar, dan bawa tumbler supaya tetap terhidrasi tanpa botol plastik.");
+    else tips.push("Cuaca mendukung untuk berjalan kaki atau bersepeda pada jarak dekat. Bawa tumbler dan tas belanja sendiri.");
+  }
+
+  if (d.aqi !== null && d.aqi > 100) tips.push("Kualitas udara kurang baik. Kurangi pemakaian motor untuk jarak dekat, jangan membakar sampah, dan pakai masker jika perlu keluar.");
+  else if (d.aqi !== null && d.aqi > 50) tips.push("Kualitas udara sedang. Bantu menjaganya dengan tidak membakar sampah dan memilih jalan kaki untuk jarak dekat.");
+  else if (d.aqi !== null) tips.push("Udara tergolong bersih. Pertahankan dengan tidak membakar sampah dan menjaga pepohonan di sekitarmu.");
+
+  tips.push("Cabut charger dan matikan perangkat yang tidak dipakai agar tidak menyedot listrik diam-diam.");
+  return tips;
+}
+
 function WeatherCard({ pos }) {
   const { status, data } = useWeather(pos);
   if (status === "loading") return <Card className="!p-4"><p className="text-xs font-medium text-slate-500">Memuat cuaca…</p></Card>;
@@ -794,6 +823,17 @@ function WeatherCard({ pos }) {
         {data.uv != null && <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700">UV {Math.round(data.uv)}</span>}
         {data.aqi !== null && <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700">Indeks udara {Math.round(data.aqi)}</span>}
         {rainy && <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700">Hujan {data.rain} mm</span>}
+      </div>
+      <div className="mt-4 rounded-[1.5rem] bg-emerald-50/70 p-4">
+        <p className="flex items-center gap-1.5 text-xs font-extrabold" style={{ color: EMERALD }}><Leaf size={14} /> Saran untuk cuaca saat ini</p>
+        <ul className="mt-2 space-y-2">
+          {weatherTips(data).map((s) => (
+            <li key={s} className="flex gap-2 text-xs leading-relaxed text-slate-700">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: EMERALD }} />
+              <span>{s}</span>
+            </li>
+          ))}
+        </ul>
       </div>
       <p className="mt-3 text-[11px] leading-relaxed text-slate-400">Data cuaca dan kualitas udara berasal dari model Open-Meteo, bukan pengukuran sensor resmi.</p>
     </Card>
