@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from "
 import {
   Leaf, Info, Mail, Trash2, Check, Sprout, TreePine, ListChecks, RotateCcw, Flame, Award, MapPin, Wind, Waves, Layers,
   Car, Snowflake, Beef, Tv, ShoppingBag, Droplets, Bike, Sparkles, ShieldCheck,
-  CloudRain, Sun, Cloud, Thermometer, Home, Lightbulb,
+  CloudRain, Sun, Cloud, Home,
 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -545,7 +545,7 @@ function Simulator() {
 // Tempel teks Alkitab Terjemahan Baru (TB) persis seperti aslinya pada tiap ayat di bawah ini.
 // Selama masih kosong, aplikasi hanya menampilkan rujukan ayatnya.
 const AYAT_TB = {
-  "Mazmur 24:1": "",
+  "Mazmur 24:1": "TUHANlah yang empunya bumi serta segala isinya, dan dunia serta yang diam di dalamnya.",
   "Kejadian 2:15": "",
   "Amsal 12:10": "",
   "Roma 8:19-21": "",
@@ -756,29 +756,13 @@ function useWeather(pos) {
   return w;
 }
 
-function weatherAdvice(d) {
-  const rainy = d.rain > 0 || (d.code >= 51 && d.code <= 99);
-  const t = Math.round(d.temp);
-  const tips = [];
-  if (d.temp < 25) tips.push({ icon: Thermometer, t: `Cuaca sejuk, ${t}°C. AC sepertinya tidak perlu dinyalakan; buka jendela atau pakai kipas saja supaya listrik dan emisi lebih hemat.` });
-  else if (d.temp < 30) tips.push({ icon: Thermometer, t: `Suhu ${t}°C cukup nyaman. Kalau AC sedang menyala, menaikkan suhunya satu atau dua derajat sudah menghemat listrik dan emisi.` });
-  else tips.push({ icon: Thermometer, t: `Cuaca panas, ${t}°C. Atur AC di 25–26°C atau pilih kipas supaya lebih hemat listrik dan emisi.` });
-  if (rainy) {
-    tips.push({ icon: CloudRain, t: "Lagi hujan: air hujan bagus untuk menyiram tanaman. Tampung di ember, lumayan menghemat air bersih." });
-    tips.push({ icon: Sparkles, t: "Sambil di dalam rumah, ini waktu pas untuk merapikan email dan berkas yang menumpuk di bawah." });
-  } else {
-    tips.push({ icon: Sun, t: "Cuaca kering: jemur pakaian di bawah matahari tanpa mesin pengering, dan siram tanaman pagi atau sore agar airnya tidak cepat menguap." });
-  }
-  if (d.aqi !== null && d.aqi > 100) tips.push({ icon: Wind, t: "Udara kurang sehat: kurangi pakai motor hari ini dan hindari membakar sampah." });
-  if (d.uv >= 8) tips.push({ icon: Sun, t: "UV tinggi: sebaiknya hindari aktivitas di luar pukul 10.00–15.00." });
-  return { rainy, tips };
-}
+const isRainy = (d) => d.rain > 0 || (d.code >= 51 && d.code <= 99);
 
 function WeatherCard({ pos }) {
   const { status, data } = useWeather(pos);
   if (status === "loading") return <Card className="!p-4"><p className="text-xs font-medium text-slate-500">Memuat cuaca…</p></Card>;
   if (status === "error") return <Card className="!p-4"><p className="text-xs font-medium text-slate-500">Cuaca belum bisa dimuat. Periksa koneksi internet, lalu buka ulang aplikasi ini.</p></Card>;
-  const { rainy, tips } = weatherAdvice(data);
+  const rainy = isRainy(data);
   const Icon = rainy ? CloudRain : data.code <= 1 ? Sun : Cloud;
   return (
     <Card className="!p-4">
@@ -794,15 +778,6 @@ function WeatherCard({ pos }) {
         {data.aqi !== null && <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700">Indeks udara {Math.round(data.aqi)}</span>}
         {rainy && <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700">Hujan {data.rain} mm</span>}
       </div>
-      <p className="mt-4 flex items-center gap-1.5 text-xs font-extrabold text-slate-900"><Lightbulb size={14} color={EMERALD} /> Kotak Pengetahuan</p>
-      <ul className="mt-2 space-y-2">
-        {tips.map(({ icon: TipIcon, t }) => (
-          <li key={t} className="flex items-start gap-2 rounded-[1.5rem] bg-emerald-50/60 px-3 py-2.5">
-            <TipIcon size={16} color={EMERALD} className="mt-0.5 shrink-0" />
-            <span className="text-xs leading-relaxed text-slate-600">{t}</span>
-          </li>
-        ))}
-      </ul>
       <p className="mt-3 text-[11px] leading-relaxed text-slate-400">Data cuaca dan kualitas udara berasal dari model Open-Meteo, bukan pengukuran sensor resmi.</p>
     </Card>
   );
@@ -879,8 +854,9 @@ function Missions({ days, setDays, today, msLeft }) {
 
       <Card className="!p-4">
         <p className="text-xs font-semibold text-slate-500">Renungan hari ini</p>
-        <p className="mt-2 font-serif text-[15px] italic leading-relaxed text-slate-800">“{AYAT_TB[verse.ref] || verse.r}”</p>
-        <p className="mt-2 text-[11px] font-bold" style={{ color: EMERALD }}>— {verse.ref} (TB)</p>
+        {AYAT_TB[verse.ref] && <p className="mt-2 font-serif text-[15px] italic leading-relaxed text-slate-800">“{AYAT_TB[verse.ref]}”</p>}
+        <p className={`text-[11px] font-bold ${AYAT_TB[verse.ref] ? "mt-1.5" : "mt-2"}`} style={{ color: EMERALD }}>{AYAT_TB[verse.ref] ? "— " : ""}{verse.ref} (TB)</p>
+        <p className="mt-3 text-sm leading-relaxed text-slate-600">{verse.r}</p>
       </Card>
 
       <div className="space-y-3">
@@ -940,9 +916,9 @@ const AppHeader = memo(function AppHeader({ title, grams, pct }) {
         <Logo size={48} />
         <div>
           <h1 className="flex items-end leading-none" aria-label="MyWORLD">
-            <span className="bg-gradient-to-r from-emerald-600 to-cyan-500 bg-clip-text pb-1 pr-1 text-[1.65rem] font-normal tracking-wide text-transparent"
+            <span className="bg-gradient-to-r from-emerald-600 to-cyan-500 bg-clip-text pb-1 pr-1 text-[1.2rem] font-normal tracking-normal text-transparent"
               style={{ fontFamily: "'Pacifico', 'Dancing Script', cursive" }}>MyWORLD</span>
-            <span aria-hidden="true" className="mb-2 ml-0.5 h-2 w-2 shrink-0 rounded-full"
+            <span aria-hidden="true" className="mb-[0.45rem] ml-0.5 h-1.5 w-1.5 shrink-0 rounded-full"
               style={{ background: "radial-gradient(circle at 35% 35%, #FFD84D, #FB923C)" }} />
           </h1>
           <p className="text-xs font-medium text-slate-500">{title}</p>
