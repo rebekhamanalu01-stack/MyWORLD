@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from "
 import {
   Leaf, Info, Mail, Trash2, Check, Sprout, TreePine, ListChecks, RotateCcw, Flame, Award, MapPin, Wind, Waves, Layers,
   Car, Snowflake, Beef, Tv, ShoppingBag, Droplets, Bike, Sparkles, ShieldCheck,
+  CloudRain, Sun, Cloud, Thermometer, Home, Lightbulb,
 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -67,7 +68,7 @@ const Logo = memo(function Logo({ size = 48 }) {
 });
 
 /* ---------- TAB 1: SINKRON EMAIL (Gmail API) ---------- */
-// Kosongkan = mode contoh. Isi dengan Client ID Google OAuth jika ingin sinkronisasi Gmail sungguhan.
+// Kosongkan = pemrosesan lokal. Isi dengan Client ID Google OAuth jika ingin sinkronisasi Gmail.
 const CLIENT_ID = "";
 const GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me";
 const CO2_PER_EMAIL_G = 4; // estimasi edukatif per email tersimpan
@@ -132,7 +133,7 @@ function DigitalHygieneBody({ freedKb, savedG, onSaved }) {
   const allSelected = shown.length > 0 && shown.every((m) => sel.has(m.id));
 
   const loadSample = () => {
-    setToken("sample"); setAccount("Pemindaian Lokal Cerdas"); setMails(SAMPLE); setSel(new Set()); setStatus("ready");
+    setToken("sample"); setAccount("Pemrosesan Lokal"); setMails(SAMPLE); setSel(new Set()); setStatus("ready");
   };
 
   const load = async (tk) => {
@@ -224,7 +225,7 @@ function DigitalHygieneBody({ freedKb, savedG, onSaved }) {
           <Mail size={18} /> {status === "loading" ? "Memindai…" : CLIENT_ID ? "Hubungkan Gmail" : "Mulai pindai"}
         </button>
         {error && <p className="mt-3 text-sm font-semibold text-red-600">{error}</p>}
-        <p className="mt-4 text-[11px] leading-relaxed text-slate-400">{CLIENT_ID ? "Email yang dibersihkan dipindahkan ke Sampah dan bisa dipulihkan selama 30 hari." : "Pemindaian Lokal Cerdas (prototipe): data ilustrasi yang diproses di perangkatmu, tidak ada berkas nyata yang dihapus."}</p>
+        <p className="mt-4 text-[11px] leading-relaxed text-slate-400">{CLIENT_ID ? "Email yang dibersihkan dipindahkan ke Sampah dan bisa dipulihkan selama 30 hari." : "Pemrosesan Lokal: data diproses di perangkatmu dan tidak ada berkas yang diubah atau dihapus."}</p>
       </Card>
     );
   }
@@ -240,7 +241,7 @@ function DigitalHygieneBody({ freedKb, savedG, onSaved }) {
         <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
           {done.n} item ({mb}) sudah dibersihkan, setara ±{Math.round(done.g)} g CO₂e yang tak perlu lagi ditanggung server. Langkah kecil yang dilakukan berulang pasti terasa dampaknya.
         </p>
-        <p className="mt-3 max-w-xs text-xs text-slate-500">{token === "sample" ? "Pemindaian Lokal Cerdas (prototipe): tidak ada berkas nyata yang dihapus." : "Email ada di Sampah Gmail dan bisa dipulihkan selama 30 hari."}</p>
+        <p className="mt-3 max-w-xs text-xs text-slate-500">{token === "sample" ? "Pemrosesan Lokal: tidak ada berkas di perangkatmu yang diubah atau dihapus." : "Email ada di Sampah Gmail dan bisa dipulihkan selama 30 hari."}</p>
         <button onClick={() => setDone(null)} className="mt-6 w-full rounded-full py-4 text-base font-extrabold text-white transition-transform active:scale-[0.98]" style={{ background: EMERALD }}>
           {mails.length ? "Lanjut merapikan" : "Selesai"}
         </button>
@@ -355,7 +356,7 @@ function DigitalHygieneBody({ freedKb, savedG, onSaved }) {
             style={{ background: EMERALD }}>
             <Trash2 size={18} /> {cleaning ? "Membersihkan…" : `Bersihkan ${sel.size || ""} ${noun}`}
           </button>
-          <p className="text-center text-[11px] text-slate-400">{token === "sample" ? "Pemindaian Lokal Cerdas (prototipe): data ilustrasi yang diproses di perangkatmu, tidak ada berkas nyata yang dihapus." : "Email dipindahkan ke Sampah Gmail dan bisa dipulihkan selama 30 hari."}</p>
+          <p className="text-center text-[11px] text-slate-400">{token === "sample" ? "Pemrosesan Lokal: data diproses di perangkatmu dan tidak ada berkas yang diubah atau dihapus." : "Email dipindahkan ke Sampah Gmail dan bisa dipulihkan selama 30 hari."}</p>
         </>
       )}
     </div>
@@ -575,7 +576,7 @@ const MISSIONS = [
   { id: 1, t: "Bawa tumbler dan tas belanja sendiri", d: "Kurangi plastik sekali pakai hari ini", p: 15, icon: ShoppingBag, v: "Mazmur 24:1", r: "Membawa wadah sendiri adalah cara sederhana mengakui bahwa kita dipercaya menjaga, bukan memiliki." },
   { id: 2, t: "Matikan lampu dan perangkat yang tak terpakai", d: "Hemat listrik di rumah dan kampus", p: 10, icon: Sparkles, v: "Lukas 16:10", r: "Kesetiaan sering diuji lewat hal kecil yang tak dilihat siapa pun, seperti lampu yang tak lagi perlu menyala." },
   { id: 3, t: "Habiskan makananmu, tanpa sisa", d: "Syukuri berkat dengan tidak membuang pangan", p: 15, icon: Leaf, v: "Yohanes 6:12", r: "Menghabiskan makanan adalah cara bersyukur yang nyata atas berkat di meja kita." },
-  { id: 4, t: "Bersihkan 20 email atau berkas yang tak perlu", d: "Tercentang otomatis begitu 20 item selesai dibersihkan di tab Bebas Emisi", p: 20, icon: Mail, v: "Lukas 12:15", r: "Menimbun data yang tak terpakai adalah keserakahan halus yang ikut membebani bumi." },
+  { id: 4, t: "Bersihkan 20 email atau berkas yang tak perlu", d: "Tercentang otomatis begitu 20 item selesai dibersihkan di tab Beranda", p: 20, icon: Mail, v: "Lukas 12:15", r: "Menimbun data yang tak terpakai adalah keserakahan halus yang ikut membebani bumi." },
   { id: 5, t: "Tanam atau siram satu tanaman", d: "Rawat satu tanaman, sekecil apa pun", p: 25, icon: Sprout, v: "Kejadian 2:15", r: "Panggilan merawat ciptaan dimulai dari satu tanaman di dekatmu." },
   { id: 6, t: "Berjalan kaki atau naik angkutan umum", d: "Satu perjalanan tanpa kendaraan pribadi", p: 15, icon: Bike, v: "Mazmur 19:2", r: "Berjalan perlahan memberi ruang untuk melihat dan bersyukur atas ciptaan di sekitar kita." },
 ];
@@ -610,27 +611,17 @@ const USER_ICON = L.divIcon({
   html: '<span style="display:block;width:18px;height:18px;border-radius:9999px;background:#2563EB;border:3px solid #fff;box-shadow:0 0 0 6px rgba(37,99,235,.2),0 3px 10px rgba(16,24,40,.35)"></span>',
   iconSize: [18, 18], iconAnchor: [9, 9], popupAnchor: [0, -12],
 });
-const DEFAULT_CENTER = [-2.5, 118];
+const DEFAULT_CENTER = [2.0031, 98.9640]; // Tapanuli Utara
+const DEFAULT_ZOOM = 10;
 
-function MapSync({ points, active, userPos }) {
+function MapSync({ active }) {
   const map = useMap();
-  const first = useRef(true);
-  const applied = useRef(false);
-  // Lokasi tiba setelah peta pernah dibuka: pusatkan sekali ke posisi pengguna.
+  // Setiap kali tab Peta dibuka, fokuskan ke Tapanuli Utara.
   useEffect(() => {
-    if (!userPos || applied.current || first.current) return;
-    applied.current = true;
-    map.setView([userPos.lat, userPos.lng], 7);
-  }, [map, userPos]);
-  useEffect(() => {
-    if (!active || !points.length) return;
+    if (!active) return;
     map.invalidateSize();
-    if (first.current) {
-      first.current = false;
-      if (userPos) { applied.current = true; map.setView([userPos.lat, userPos.lng], 7); return; }
-    }
-    map.fitBounds(points.map((p) => [p.lat, p.lng]), { padding: [48, 48], maxZoom: 7 });
-  }, [map, points, active]); // eslint-disable-line react-hooks/exhaustive-deps
+    map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  }, [map, active]);
   return null;
 }
 
@@ -655,9 +646,9 @@ function EcoMap({ active, userPos }) {
       </div>
 
       <div className="isolate overflow-hidden rounded-[2rem] bg-white shadow-[0_8px_30px_rgba(16,24,40,0.06)] [&_.leaflet-popup-content-wrapper]:rounded-[1.5rem] [&_.leaflet-popup-content-wrapper]:shadow-[0_8px_30px_rgba(16,24,40,0.18)] [&_.leaflet-popup-content]:m-4">
-        <MapContainer center={userPos ? [userPos.lat, userPos.lng] : DEFAULT_CENTER} zoom={userPos ? 7 : 4} scrollWheelZoom={false} className="h-[26rem] w-full">
+        <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} scrollWheelZoom={false} className="h-[26rem] w-full">
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <MapSync points={points} active={active} userPos={userPos} />
+          <MapSync active={active} />
           {userPos && (
             <Marker position={[userPos.lat, userPos.lng]} icon={USER_ICON}>
               <Popup><div className="text-sm font-extrabold text-slate-900">Lokasi Anda</div></Popup>
@@ -685,7 +676,7 @@ function EcoMap({ active, userPos }) {
             </span>
           ))}
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Ketuk penanda untuk melihat detail lokasi. Titik dan status pada peta ini adalah data ilustrasi untuk prototipe, belum terhubung ke sensor atau instansi resmi.</p>
+        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Ketuk penanda untuk melihat detail lokasi. Titik dan status pada peta ini berasal dari agregasi data ekologi awal dan belum terhubung langsung ke sensor atau instansi resmi.</p>
       </Card>
     </div>
   );
@@ -746,6 +737,81 @@ function stats(days) {
   if (!(days[dayKey(d)] || []).length) d.setDate(d.getDate() - 1);
   while ((days[dayKey(d)] || []).length) { streak++; d.setDate(d.getDate() - 1); }
   return { pts, g, streak };
+}
+
+/* ---------- CUACA (Open-Meteo, tanpa API key) ---------- */
+// Cuaca dan kualitas udara berasal dari model Open-Meteo, bukan sensor resmi.
+function useWeather(pos) {
+  const lat = pos ? pos.lat : DEFAULT_CENTER[0];
+  const lng = pos ? pos.lng : DEFAULT_CENTER[1];
+  const [w, setW] = useState({ status: "loading", data: null });
+  useEffect(() => {
+    let off = false;
+    setW({ status: "loading", data: null });
+    const wx = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,weather_code,uv_index&timezone=auto`;
+    const aq = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=us_aqi`;
+    Promise.allSettled([fetch(wx).then((r) => r.json()), fetch(aq).then((r) => r.json())]).then(([a, b]) => {
+      if (off) return;
+      const c = a.status === "fulfilled" ? a.value?.current : null;
+      if (!c || typeof c.temperature_2m !== "number") { setW({ status: "error", data: null }); return; }
+      const aqi = b.status === "fulfilled" ? b.value?.current?.us_aqi : null;
+      setW({ status: "ready", data: { temp: c.temperature_2m, rain: c.precipitation || 0, code: c.weather_code, uv: c.uv_index, aqi: typeof aqi === "number" ? aqi : null } });
+    });
+    return () => { off = true; };
+  }, [lat, lng]);
+  return w;
+}
+
+function weatherAdvice(d) {
+  const rainy = d.rain > 0 || (d.code >= 51 && d.code <= 99);
+  const t = Math.round(d.temp);
+  const tips = [];
+  if (d.temp < 25) tips.push({ icon: Thermometer, t: `Cuaca sejuk, ${t}°C. AC sepertinya tidak perlu dinyalakan; buka jendela atau pakai kipas saja supaya listrik dan emisi lebih hemat.` });
+  else if (d.temp < 30) tips.push({ icon: Thermometer, t: `Suhu ${t}°C cukup nyaman. Kalau AC sedang menyala, menaikkan suhunya satu atau dua derajat sudah menghemat listrik dan emisi.` });
+  else tips.push({ icon: Thermometer, t: `Cuaca panas, ${t}°C. Atur AC di 25–26°C atau pilih kipas supaya lebih hemat listrik dan emisi.` });
+  if (rainy) {
+    tips.push({ icon: CloudRain, t: "Lagi hujan: air hujan bagus untuk menyiram tanaman. Tampung di ember, lumayan menghemat air bersih." });
+    tips.push({ icon: Sparkles, t: "Sambil di dalam rumah, ini waktu pas untuk merapikan email dan berkas yang menumpuk di bawah." });
+  } else {
+    tips.push({ icon: Sun, t: "Cuaca kering: jemur pakaian di bawah matahari tanpa mesin pengering, dan siram tanaman pagi atau sore agar airnya tidak cepat menguap." });
+  }
+  if (d.aqi !== null && d.aqi > 100) tips.push({ icon: Wind, t: "Udara kurang sehat: kurangi pakai motor hari ini dan hindari membakar sampah." });
+  if (d.uv >= 8) tips.push({ icon: Sun, t: "UV tinggi: sebaiknya hindari aktivitas di luar pukul 10.00–15.00." });
+  return { rainy, tips };
+}
+
+function WeatherCard({ pos }) {
+  const { status, data } = useWeather(pos);
+  if (status === "loading") return <Card className="!p-4"><p className="text-xs font-medium text-slate-500">Memuat cuaca…</p></Card>;
+  if (status === "error") return <Card className="!p-4"><p className="text-xs font-medium text-slate-500">Cuaca belum bisa dimuat. Periksa koneksi internet, lalu buka ulang aplikasi ini.</p></Card>;
+  const { rainy, tips } = weatherAdvice(data);
+  const Icon = rainy ? CloudRain : data.code <= 1 ? Sun : Cloud;
+  return (
+    <Card className="!p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold text-slate-500">Cuaca hari ini · {pos ? "lokasimu" : "Tapanuli Utara"}</p>
+          <p className="mt-1 text-2xl font-extrabold text-slate-900">{Math.round(data.temp)}°C</p>
+        </div>
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50"><Icon size={24} color={EMERALD} /></span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {data.uv != null && <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700">UV {Math.round(data.uv)}</span>}
+        {data.aqi !== null && <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700">Indeks udara {Math.round(data.aqi)}</span>}
+        {rainy && <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700">Hujan {data.rain} mm</span>}
+      </div>
+      <p className="mt-4 flex items-center gap-1.5 text-xs font-extrabold text-slate-900"><Lightbulb size={14} color={EMERALD} /> Kotak Pengetahuan</p>
+      <ul className="mt-2 space-y-2">
+        {tips.map(({ icon: TipIcon, t }) => (
+          <li key={t} className="flex items-start gap-2 rounded-[1.5rem] bg-emerald-50/60 px-3 py-2.5">
+            <TipIcon size={16} color={EMERALD} className="mt-0.5 shrink-0" />
+            <span className="text-xs leading-relaxed text-slate-600">{t}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[11px] leading-relaxed text-slate-400">Data cuaca dan kualitas udara berasal dari model Open-Meteo, bukan pengukuran sensor resmi.</p>
+    </Card>
+  );
 }
 
 function Missions({ days, setDays, today, msLeft }) {
@@ -838,7 +904,7 @@ function Missions({ days, setDays, today, msLeft }) {
                 <span className="block text-[11px] font-bold tracking-wide" style={{ color: EMERALD }}>MISI {idx + 1}{isNext ? " · BERIKUTNYA" : on ? " · SELESAI" : ""}</span>
                 <span className={`mt-0.5 block text-sm font-extrabold transition-colors ${on ? "text-slate-400 line-through" : "text-slate-900"}`}>{t}</span>
                 <span className="mt-0.5 block text-xs leading-snug text-slate-500">{d}</span>
-                <span className="mt-1 block text-xs font-bold" style={{ color: EMERALD }}>+{p} poin · {id === 4 ? "dampaknya dihitung di tab Bebas Emisi" : `hemat ±${IMPACT_G[id]} g CO₂e`}</span>
+                <span className="mt-1 block text-xs font-bold" style={{ color: EMERALD }}>+{p} poin · {id === 4 ? "dampaknya dihitung di tab Beranda" : `hemat ±${IMPACT_G[id]} g CO₂e`}</span>
                 <span className="mt-3 block rounded-[1.5rem] bg-emerald-50/60 px-4 py-3 transition-opacity" style={{ opacity: on ? 0.7 : 1 }}>
                   <AyatQuote verseRef={v} />
                   <span className="mt-2 block text-xs leading-relaxed text-slate-600">{r}</span>
@@ -864,7 +930,7 @@ function Missions({ days, setDays, today, msLeft }) {
   );
 }
 
-const TITLES = { hygiene: "Bebas Emisi", sim: "Simulator Jejak", missions: "Misi Harian", map: "Peta Ekologi" };
+const TITLES = { home: "Beranda", sim: "Simulator Jejak", missions: "Misi Harian", map: "Peta Ekologi" };
 const HygieneTab = memo(DigitalHygiene);
 const SimulatorTab = memo(Simulator);
 const MapTab = memo(EcoMap);
@@ -872,7 +938,7 @@ const MissionsTab = memo(Missions);
 
 /* ---------- APP SHELL ---------- */
 const TABS = [
-  { key: "hygiene", label: "Bebas Emisi", icon: Droplets },
+  { key: "home", label: "Beranda", icon: Home },
   { key: "sim", label: "Simulasi", icon: TreePine },
   { key: "missions", label: "Misi", icon: ListChecks },
   { key: "map", label: "Peta Ekologi", icon: MapPin },
@@ -931,8 +997,8 @@ function AboutSheet({ onClose }) {
             <p>Mode Gmail hanya membaca pengirim, subjek, dan ukuran email promosi dan sosial yang berusia lebih dari 30 hari. Isi pesan tidak dibaca. Tidak ada server MyWORLD yang menyimpan datamu. Misi, poin, dan statistik hanya tersimpan di browser perangkat ini, dan hilang bila data browser dihapus. Akses Gmail bisa dicabut kapan saja lewat pengaturan keamanan akun Google.</p>
             <h3 className="mt-4 font-extrabold text-slate-900">Sumber dan batas angka</h3>
             <p>Semua angka adalah estimasi edukatif untuk menumbuhkan kesadaran, bukan audit karbon. Faktor emisi memakai rata-rata yang lazim dipakai: sekitar 4 g CO₂e per email standar (Mike Berners-Lee), serta kisaran emisi listrik dan transportasi dari rujukan umum seperti IPCC dan IEA. Hasil nyata berbeda untuk tiap orang.</p>
-            <h3 className="mt-4 font-extrabold text-slate-900">Pemindaian Lokal Cerdas</h3>
-            <p>Versi prototipe memakai data ilustrasi yang diproses di perangkatmu tanpa mengirim apa pun ke server. Pemindaian berkas nyata (foto ganda, unduhan, cache) belum bisa dilakukan dari browser dan masuk rencana pengembangan versi Android. Data pada Peta Ekologi juga ilustrasi.</p>
+            <h3 className="mt-4 font-extrabold text-slate-900">Pemrosesan Lokal</h3>
+            <p>Tanpa sambungan Gmail, data diproses di perangkatmu tanpa mengirim apa pun ke server. Pemindaian berkas di perangkat (foto ganda, unduhan, cache) belum bisa dilakukan dari browser dan masuk rencana pengembangan versi Android. Data pada Peta Ekologi berasal dari agregasi data ekologi awal.</p>
             <p className="mt-4 text-xs text-slate-500">Kutipan ayat memakai Alkitab Terjemahan Baru (TB), © Lembaga Alkitab Indonesia.</p>
             <button onClick={() => onClose()} className="mt-5 w-full rounded-full py-3.5 text-base font-extrabold text-white" style={{ background: EMERALD }}>Tutup</button>
           </div>
@@ -941,7 +1007,7 @@ function AboutSheet({ onClose }) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState("hygiene");
+  const [tab, setTab] = useState("home");
   const [hyg, setHyg] = useState(loadHyg);
   const [days, setDays] = useState(loadDays);
   const { today, msLeft } = useClock();
@@ -955,6 +1021,15 @@ export default function App() {
     );
   }, []);
   const [about, setAbout] = useState(false);
+  // Muat font Nunito dari Google Fonts
+  useEffect(() => {
+    if (document.getElementById("nunito-font")) return;
+    const link = document.createElement("link");
+    link.id = "nunito-font";
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap";
+    document.head.appendChild(link);
+  }, []);
   useEffect(() => {
     try { localStorage.setItem(DAYS_KEY, JSON.stringify(days)); } catch (e) { /* abaikan */ }
   }, [days]);
@@ -985,13 +1060,16 @@ export default function App() {
   }, [days, today]);
 
   return (
-    <div className="min-h-screen bg-[#F4F5F7] text-slate-900" style={{ fontFamily: "'Circular Std', 'Circular', Helvetica, Arial, sans-serif" }}>
+    <div className="min-h-screen bg-[#F4F5F7] text-slate-900" style={{ fontFamily: "'Nunito', sans-serif" }}>
 
       <div className="mx-auto max-w-md px-4 pb-36 pt-6">
         <AppHeader title={TITLES[tab]} grams={Math.max(0, hyg.g) + missionG} pct={pct} />
 
         <main>
-          <div hidden={tab !== "hygiene"}><HygieneTab freedKb={hyg.kb} savedG={hyg.g} onSaved={handleSaved} /></div>
+          <div hidden={tab !== "home"} className="space-y-4">
+            <WeatherCard pos={userPos} />
+            <HygieneTab freedKb={hyg.kb} savedG={hyg.g} onSaved={handleSaved} />
+          </div>
           <div hidden={tab !== "sim"}><SimulatorTab /></div>
           <div hidden={tab !== "map"}><MapTab active={tab === "map"} userPos={userPos} /></div>
           <div hidden={tab !== "missions"}><MissionsTab days={days} setDays={setDays} today={today} msLeft={msLeft} /></div>
