@@ -1,8 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from "react";
 import {
-  Leaf, Info, Mail, Trash2, Check, Sprout, TreePine, ListChecks, RotateCcw, Flame, Award, CalendarDays,
+  Leaf, Info, Mail, Trash2, Check, Sprout, TreePine, ListChecks, RotateCcw, Flame, Award, MapPin, Wind, Waves, Layers,
   Car, Snowflake, Beef, Tv, ShoppingBag, Droplets, Bike, Sparkles, ShieldCheck,
 } from "lucide-react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 const EMERALD = "#027A48";
 
@@ -29,7 +32,7 @@ function useAnimatedNumber(target, duration = 700) {
 }
 
 const Card = ({ className = "", children, ...rest }) => (
-  <div className={`rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(16,24,40,0.06)] ${className}`} {...rest}>
+  <div className={`rounded-[2rem] bg-white p-5 shadow-[0_8px_30px_rgba(16,24,40,0.06)] ${className}`} {...rest}>
     {children}
   </div>
 );
@@ -49,20 +52,16 @@ function PopIn({ className = "", style, children }) {
   );
 }
 
-/* ---------- LOGO: bumi dan daun yang menyatu (datar, ringan, tanpa filter/animasi) ---------- */
+/* ---------- LOGO: Bumi Tersenyum (datar, ringan, tanpa filter/animasi) ---------- */
 const Logo = memo(function Logo({ size = 48 }) {
   return (
     <svg viewBox="0 0 48 48" width={size} height={size} role="img" aria-label="Logo MyWORLD">
       <circle cx="24" cy="24" r="22" fill={EMERALD} />
-      <g fill="none" stroke="#fff" strokeOpacity="0.28" strokeWidth="1">
-        <ellipse cx="24" cy="24" rx="9" ry="22" />
-        <path d="M2.5 24h43M5.5 14h37M5.5 34h37" />
-      </g>
-      <path d="M12 37C10 22 20 11 37 11C38 28 28 38 12 37Z" fill="#fff" />
-      <g fill="none" stroke={EMERALD} strokeWidth="1.6" strokeLinecap="round">
-        <path d="M12 37C19 29 26 22 33 15" />
-        <path d="M18 31.5l5 1M22.5 26.5l5 1M27 21.5l4 1" strokeWidth="1.2" />
-      </g>
+      <path d="M8 18C10 11 18 8 22 11C24 14 19 17 20 20C21 23 15 24 12 22C9 21 7 21 8 18Z" fill="#A7F3D0" />
+      <path d="M34 29C38 28 41 31 40 35C39 39 34 41 31 38C29 35 30 30 34 29Z" fill="#A7F3D0" />
+      <circle cx="18" cy="26" r="2.2" fill="#fff" />
+      <circle cx="30" cy="26" r="2.2" fill="#fff" />
+      <path d="M17.5 31C20 35 27 35 29.5 31" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" />
     </svg>
   );
 });
@@ -107,7 +106,7 @@ async function gmail(token, path, opts = {}) {
   return text ? JSON.parse(text) : null;
 }
 
-function DigitalHygiene({ freedKb, savedG, onSaved }) {
+function DigitalHygieneBody({ freedKb, savedG, onSaved }) {
   const [token, setToken] = useState(null);
   const [account, setAccount] = useState("");
   const [mails, setMails] = useState([]);
@@ -133,7 +132,7 @@ function DigitalHygiene({ freedKb, savedG, onSaved }) {
   const allSelected = shown.length > 0 && shown.every((m) => sel.has(m.id));
 
   const loadSample = () => {
-    setToken("sample"); setAccount("Pemindaian contoh"); setMails(SAMPLE); setSel(new Set()); setStatus("ready");
+    setToken("sample"); setAccount("Pemindaian Lokal Cerdas"); setMails(SAMPLE); setSel(new Set()); setStatus("ready");
   };
 
   const load = async (tk) => {
@@ -214,18 +213,18 @@ function DigitalHygiene({ freedKb, savedG, onSaved }) {
   if (status !== "ready") {
     return (
       <Card className="flex flex-col items-center py-10 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-50"><Mail size={30} color={EMERALD} /></div>
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50"><Mail size={30} color={EMERALD} /></div>
         <h2 className="mt-4 text-xl font-extrabold text-slate-900">Bersihkan jejak digitalmu</h2>
         <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
           {CLIENT_ID ? "MyWORLD hanya membaca pengirim, subjek, dan ukuran email promosi dan sosial yang usianya lebih dari 30 hari. Isi pesanmu tidak dibaca dan tidak dikirim ke server mana pun." : "Email lama, foto dobel, unduhan yang terlupakan, sampai cache aplikasi. Semua yang menumpuk di perangkat dan server ikut menyedot energi. Yuk, rapikan."}
         </p>
         <button onClick={connect} disabled={status === "loading"}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-base font-extrabold text-white shadow-[0_8px_20px_rgba(2,122,72,0.25)] transition-all active:scale-[0.98] disabled:opacity-50"
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-full py-4 text-base font-extrabold text-white shadow-[0_8px_20px_rgba(2,122,72,0.25)] transition-all active:scale-[0.98] disabled:opacity-50"
           style={{ background: EMERALD }}>
           <Mail size={18} /> {status === "loading" ? "Memindai…" : CLIENT_ID ? "Hubungkan Gmail" : "Mulai pindai"}
         </button>
         {error && <p className="mt-3 text-sm font-semibold text-red-600">{error}</p>}
-        <p className="mt-4 text-[11px] leading-relaxed text-slate-400">{CLIENT_ID ? "Email yang dibersihkan dipindahkan ke Sampah dan bisa dipulihkan selama 30 hari." : "Mode contoh: data ilustrasi, tidak ada berkas nyata yang dihapus."}</p>
+        <p className="mt-4 text-[11px] leading-relaxed text-slate-400">{CLIENT_ID ? "Email yang dibersihkan dipindahkan ke Sampah dan bisa dipulihkan selama 30 hari." : "Pemindaian Lokal Cerdas (prototipe): data ilustrasi yang diproses di perangkatmu, tidak ada berkas nyata yang dihapus."}</p>
       </Card>
     );
   }
@@ -241,8 +240,8 @@ function DigitalHygiene({ freedKb, savedG, onSaved }) {
         <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
           {done.n} item ({mb}) sudah dibersihkan, setara ±{Math.round(done.g)} g CO₂e yang tak perlu lagi ditanggung server. Langkah kecil yang dilakukan berulang pasti terasa dampaknya.
         </p>
-        <p className="mt-3 max-w-xs text-xs text-slate-500">{token === "sample" ? "Mode contoh: tidak ada berkas nyata yang dihapus." : "Email ada di Sampah Gmail dan bisa dipulihkan selama 30 hari."}</p>
-        <button onClick={() => setDone(null)} className="mt-6 w-full rounded-2xl py-4 text-base font-extrabold text-white transition-transform active:scale-[0.98]" style={{ background: EMERALD }}>
+        <p className="mt-3 max-w-xs text-xs text-slate-500">{token === "sample" ? "Pemindaian Lokal Cerdas (prototipe): tidak ada berkas nyata yang dihapus." : "Email ada di Sampah Gmail dan bisa dipulihkan selama 30 hari."}</p>
+        <button onClick={() => setDone(null)} className="mt-6 w-full rounded-full py-4 text-base font-extrabold text-white transition-transform active:scale-[0.98]" style={{ background: EMERALD }}>
           {mails.length ? "Lanjut merapikan" : "Selesai"}
         </button>
       </Card>
@@ -314,10 +313,10 @@ function DigitalHygiene({ freedKb, savedG, onSaved }) {
         </div>
         {mails.length === 0 ? (
           <div className="flex flex-col items-center px-6 py-10 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50"><ShieldCheck size={26} color={EMERALD} /></div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50"><ShieldCheck size={26} color={EMERALD} /></div>
             <p className="mt-3 text-base font-extrabold text-slate-900">Sudah bersih semua</p>
             <p className="mt-1 text-sm text-slate-500">Tidak ada lagi yang perlu dirapikan. Server pun ikut lega.</p>
-            <button onClick={() => load(token)} className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700">
+            <button onClick={() => load(token)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700">
               <RotateCcw size={15} /> Pindai lagi
             </button>
           </div>
@@ -328,8 +327,8 @@ function DigitalHygiene({ freedKb, savedG, onSaved }) {
               return (
                 <li key={m.id}>
                   <button onClick={() => toggle(m.id)}
-                    className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors ${on ? "bg-emerald-50/70" : "hover:bg-slate-50"}`}>
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 transition-all"
+                    className={`flex w-full items-center gap-3 rounded-full px-3 py-3 text-left transition-colors ${on ? "bg-emerald-50/70" : "hover:bg-slate-50"}`}>
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all"
                       style={{ borderColor: on ? EMERALD : "#D0D5DD", background: on ? EMERALD : "#fff" }}>
                       {on && <Check size={14} color="#fff" strokeWidth={3} />}
                     </span>
@@ -352,13 +351,41 @@ function DigitalHygiene({ freedKb, savedG, onSaved }) {
       {mails.length > 0 && (
         <>
           <button onClick={clean} disabled={!sel.size || cleaning}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-base font-extrabold text-white shadow-[0_8px_20px_rgba(2,122,72,0.25)] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+            className="flex w-full items-center justify-center gap-2 rounded-full py-4 text-base font-extrabold text-white shadow-[0_8px_20px_rgba(2,122,72,0.25)] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
             style={{ background: EMERALD }}>
             <Trash2 size={18} /> {cleaning ? "Membersihkan…" : `Bersihkan ${sel.size || ""} ${noun}`}
           </button>
-          <p className="text-center text-[11px] text-slate-400">{token === "sample" ? "Mode contoh: data ilustrasi, tidak ada berkas nyata yang dihapus." : "Email dipindahkan ke Sampah Gmail dan bisa dipulihkan selama 30 hari."}</p>
+          <p className="text-center text-[11px] text-slate-400">{token === "sample" ? "Pemindaian Lokal Cerdas (prototipe): data ilustrasi yang diproses di perangkatmu, tidak ada berkas nyata yang dihapus." : "Email dipindahkan ke Sampah Gmail dan bisa dipulihkan selama 30 hari."}</p>
         </>
       )}
+    </div>
+  );
+}
+
+function CarbonBanner() {
+  return (
+    <section className="relative overflow-hidden rounded-[2rem] p-6 text-white shadow-[0_12px_40px_rgba(2,122,72,0.22)]" style={{ background: EMERALD }}>
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold">
+        <Info size={12} /> Tahukah kamu?
+      </span>
+      <h2 className="mt-3 text-xl font-extrabold leading-snug">Memori digital punya jejak karbon</h2>
+      <p className="mt-2 text-sm leading-relaxed text-emerald-50">
+        Datamu tidak melayang di awan. Ia tersimpan di server fisik raksasa yang menyala dan didinginkan 24 jam nonstop. Semakin banyak data menumpuk, semakin besar listrik dan emisi karbon yang dibutuhkan.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {["Listrik 24 jam", "Pendingin nonstop", "Emisi karbon"].map((t) => (
+          <span key={t} className="rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-bold">{t}</span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function DigitalHygiene(props) {
+  return (
+    <div className="space-y-4">
+      <CarbonBanner />
+      <DigitalHygieneBody {...props} />
     </div>
   );
 }
@@ -457,7 +484,7 @@ function Simulator() {
           </div>
         </div>
         <Tree health={health} />
-        <div className="mt-1 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+        <div className="mt-1 flex items-center justify-between rounded-full bg-slate-50 px-4 py-3">
           <span className="text-xs font-semibold text-slate-500">Pohon untuk menyerap emisimu</span>
           <span className="text-sm font-extrabold text-slate-900">{trees} pohon / tahun</span>
         </div>
@@ -465,10 +492,10 @@ function Simulator() {
 
       <Card>
         <h3 className="mb-3 text-sm font-extrabold text-slate-900">Kebiasaan harianmu</h3>
-        <div className="mb-4 grid grid-cols-4 gap-1 rounded-2xl bg-slate-100 p-1">
+        <div className="mb-4 grid grid-cols-4 gap-1 rounded-full bg-slate-100 p-1">
           {MODES.map((m) => (
             <button key={m.key} onClick={() => setMode(m.key)}
-              className={`rounded-xl px-1 py-2 text-[11px] font-bold transition-all ${mode === m.key ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>
+              className={`rounded-full px-1 py-2 text-[11px] font-bold transition-all ${mode === m.key ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>
               {m.label}
             </button>
           ))}
@@ -478,7 +505,7 @@ function Simulator() {
             <div key={label}>
               <div className="mb-2 flex items-center justify-between">
                 <span className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50"><Icon size={16} color={EMERALD} /></span>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50"><Icon size={16} color={EMERALD} /></span>
                   {label}
                 </span>
                 <span className="text-sm font-extrabold text-slate-900">{v} <span className="text-xs font-medium text-slate-400">{unit}</span></span>
@@ -514,247 +541,153 @@ function Simulator() {
 }
 
 /* ---------- TAB 3: ECO MISSIONS ---------- */
+// Tempel teks Alkitab Terjemahan Baru (TB) persis seperti aslinya pada tiap ayat di bawah ini.
+// Selama masih kosong, aplikasi hanya menampilkan rujukan ayatnya.
+const AYAT_TB = {
+  "Mazmur 24:1": "",
+  "Kejadian 2:15": "",
+  "Amsal 12:10": "",
+  "Roma 8:19-21": "",
+  "Lukas 16:10": "",
+  "Yohanes 6:12": "",
+  "Lukas 12:15": "",
+  "Mazmur 19:2": "",
+};
+
 const VERSES = [
-  { ref: "Mazmur 24:1", t: "Bumi dan segala isinya milik Tuhan. Kita merawatnya, bukan memilikinya." },
-  { ref: "Kejadian 2:15", t: "Manusia ditempatkan di taman untuk mengusahakan dan memelihara, bukan sekadar memakai." },
-  { ref: "Amsal 12:10", t: "Orang benar peduli pada kehidupan makhluk di sekitarnya." },
-  { ref: "Roma 8:19-21", t: "Seluruh ciptaan turut menantikan pemulihan, dan manusia dipanggil mengambil bagian di dalamnya." },
+  { ref: "Mazmur 24:1", r: "Kita adalah penjaga, bukan pemilik, atas segala yang dipercayakan kepada kita." },
+  { ref: "Kejadian 2:15", r: "Merawat bumi bukan tambahan, melainkan bagian dari panggilan sejak semula." },
+  { ref: "Amsal 12:10", r: "Kepedulian kepada makhluk lain mencerminkan hati yang benar." },
+  { ref: "Roma 8:19-21", r: "Pemulihan ciptaan adalah harapan bersama yang kita kerjakan lewat pilihan sehari-hari." },
 ];
+
+function AyatQuote({ verseRef }) {
+  const text = AYAT_TB[verseRef];
+  return (
+    <>
+      {text ? <span className="block font-serif text-sm italic leading-relaxed text-slate-800">“{text}”</span> : null}
+      <span className={`block text-[11px] font-bold ${text ? "mt-1" : ""}`} style={{ color: EMERALD }}>{text ? "— " : ""}{verseRef} (TB)</span>
+    </>
+  );
+}
 
 const MISSIONS = [
-  { id: 1, t: "Bawa tumbler dan tas belanja sendiri", d: "Kurangi plastik sekali pakai hari ini", p: 15, icon: ShoppingBag, v: "Mazmur 24:1", r: "Bumi dan isinya milik Tuhan. Membawa wadah sendiri adalah cara kecil mengakui bahwa kita hanya dipercaya merawatnya." },
-  { id: 2, t: "Matikan lampu dan perangkat yang tak terpakai", d: "Hemat listrik di rumah dan kampus", p: 10, icon: Sparkles, v: "Lukas 16:10", r: "Kesetiaan diuji dalam perkara kecil yang tak dilihat orang, seperti sebuah lampu yang tidak lagi perlu menyala." },
-  { id: 3, t: "Habiskan makananmu, tanpa sisa", d: "Syukuri berkat dengan tidak membuang pangan", p: 15, icon: Leaf, v: "Yohanes 6:12", r: "Yesus meminta potongan yang tersisa dikumpulkan agar tidak ada yang terbuang. Bersyukur berarti menghargai apa yang ada di piring." },
-  { id: 4, t: "Bersihkan 20 email atau berkas yang tak perlu", d: "Tercentang otomatis begitu 20 item selesai dibersihkan di tab Bersih", p: 20, icon: Mail, v: "Lukas 12:15", r: "Hidup tidak ditentukan oleh banyaknya milik. Menimbun data yang tak terpakai juga bentuk keserakahan yang membebani bumi." },
-  { id: 5, t: "Tanam atau siram satu tanaman", d: "Rawat satu tanaman, sekecil apa pun", p: 25, icon: Sprout, v: "Kejadian 2:15", r: "Manusia ditempatkan di taman untuk mengusahakan dan memelihara. Panggilan itu dimulai dari satu tanaman di dekatmu." },
-  { id: 6, t: "Berjalan kaki atau naik angkutan umum", d: "Satu perjalanan tanpa kendaraan pribadi", p: 15, icon: Bike, v: "Mazmur 19:2", r: "Langit menceritakan kemuliaan Allah. Berjalan perlahan memberi kesempatan untuk benar-benar melihat dan bersyukur atas ciptaan." },
+  { id: 1, t: "Bawa tumbler dan tas belanja sendiri", d: "Kurangi plastik sekali pakai hari ini", p: 15, icon: ShoppingBag, v: "Mazmur 24:1", r: "Membawa wadah sendiri adalah cara sederhana mengakui bahwa kita dipercaya menjaga, bukan memiliki." },
+  { id: 2, t: "Matikan lampu dan perangkat yang tak terpakai", d: "Hemat listrik di rumah dan kampus", p: 10, icon: Sparkles, v: "Lukas 16:10", r: "Kesetiaan sering diuji lewat hal kecil yang tak dilihat siapa pun, seperti lampu yang tak lagi perlu menyala." },
+  { id: 3, t: "Habiskan makananmu, tanpa sisa", d: "Syukuri berkat dengan tidak membuang pangan", p: 15, icon: Leaf, v: "Yohanes 6:12", r: "Menghabiskan makanan adalah cara bersyukur yang nyata atas berkat di meja kita." },
+  { id: 4, t: "Bersihkan 20 email atau berkas yang tak perlu", d: "Tercentang otomatis begitu 20 item selesai dibersihkan di tab Bebas Emisi", p: 20, icon: Mail, v: "Lukas 12:15", r: "Menimbun data yang tak terpakai adalah keserakahan halus yang ikut membebani bumi." },
+  { id: 5, t: "Tanam atau siram satu tanaman", d: "Rawat satu tanaman, sekecil apa pun", p: 25, icon: Sprout, v: "Kejadian 2:15", r: "Panggilan merawat ciptaan dimulai dari satu tanaman di dekatmu." },
+  { id: 6, t: "Berjalan kaki atau naik angkutan umum", d: "Satu perjalanan tanpa kendaraan pribadi", p: 15, icon: Bike, v: "Mazmur 19:2", r: "Berjalan perlahan memberi ruang untuk melihat dan bersyukur atas ciptaan di sekitar kita." },
 ];
 
-/* ---------- KALENDER GEREJA: TANTANGAN MUSIMAN ---------- */
-function easterDate(y) {
-  const a = y % 19, b = Math.floor(y / 100), c = y % 100;
-  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const mo = Math.floor((h + l - 7 * m + 114) / 31);
-  const da = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(y, mo - 1, da);
-}
-const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
-function adventStart(y) {
-  const xmas = new Date(y, 11, 25);
-  const dow = xmas.getDay();
-  return addDays(xmas, -(dow === 0 ? 7 : dow) - 21);
-}
-function seasonRanges(y) {
-  const E = easterDate(y), ash = addDays(E, -46), pent = addDays(E, 49), adv = adventStart(y);
-  return [
-    { key: "natal", start: new Date(y, 0, 1), end: new Date(y, 0, 5) },
-    { key: "epifani", start: new Date(y, 0, 6), end: addDays(ash, -1) },
-    { key: "prapaskah", start: ash, end: addDays(E, -1) },
-    { key: "paskah", start: E, end: addDays(pent, -1) },
-    { key: "pentakosta", start: pent, end: new Date(y, 7, 31) },
-    { key: "creation", start: new Date(y, 8, 1), end: new Date(y, 9, 4) },
-    { key: "biasa", start: new Date(y, 9, 5), end: addDays(adv, -1) },
-    { key: "advent", start: adv, end: new Date(y, 11, 24) },
-    { key: "natal", start: new Date(y, 11, 25), end: new Date(y, 11, 31) },
-  ];
+/* ---------- TAB 4: PETA EKOLOGI (React Leaflet + OpenStreetMap) ---------- */
+const GEO_CATS = [
+  { key: "all", label: "Semua", icon: Layers },
+  { key: "udara", label: "Udara", icon: Wind },
+  { key: "air", label: "Air", icon: Waves },
+  { key: "hutan", label: "Hutan", icon: TreePine },
+  { key: "limbah", label: "Limbah", icon: Trash2 },
+];
+const STATUS_COLOR = { Kritis: "#D92D20", Waspada: "#F79009", Aman: EMERALD };
+const GEO_POINTS = [
+  { id: 1, name: "Jakarta Pusat", cat: "udara", status: "Kritis", lat: -6.18, lng: 106.83, desc: "Udara sering tidak sehat bagi kelompok sensitif pada jam sibuk. Asap kendaraan dan industri jadi pemicu utama; mengurangi kendaraan pribadi membantu menurunkannya." },
+  { id: 2, name: "Medan", cat: "udara", status: "Waspada", lat: 3.59, lng: 98.67, desc: "Kualitas udara naik turun mengikuti kepadatan lalu lintas dan pembakaran terbuka. Pantau sebelum beraktivitas di luar ruangan." },
+  { id: 3, name: "Sungai Citarum", cat: "air", status: "Kritis", lat: -6.98, lng: 107.62, desc: "Beban limbah domestik dan industri menurunkan kualitas air dan mengancam kehidupan di sepanjang aliran." },
+  { id: 4, name: "Danau Toba, Parapat", cat: "air", status: "Waspada", lat: 2.67, lng: 98.93, desc: "Sisa pakan dan limbah rumah tangga memicu pertumbuhan alga yang menurunkan kejernihan air danau." },
+  { id: 5, name: "Hutan Kalimantan Tengah", cat: "hutan", status: "Kritis", lat: -2.2, lng: 113.9, desc: "Pembukaan lahan mengurangi tutupan hutan dan melepas karbon yang tersimpan selama puluhan tahun." },
+  { id: 6, name: "Mangrove Belawan", cat: "hutan", status: "Aman", lat: 3.78, lng: 98.7, desc: "Contoh kawasan penghijauan: akar mangrove menahan abrasi, menyimpan karbon, dan menjadi rumah bagi biota pesisir." },
+  { id: 7, name: "TPA Bantar Gebang", cat: "limbah", status: "Kritis", lat: -6.34, lng: 106.99, desc: "Timbunan sampah yang sangat besar melepas gas metana dan mencemari tanah serta air sekitar." },
+  { id: 8, name: "Pesisir Teluk Jakarta", cat: "limbah", status: "Waspada", lat: -6.1, lng: 106.78, desc: "Sampah plastik terbawa arus sungai ke pesisir, mengganggu nelayan dan biota laut." },
+];
+const PIN_ICONS = Object.fromEntries(Object.entries(STATUS_COLOR).map(([k, c]) => [k, L.divIcon({
+  className: "",
+  html: `<span style="display:block;width:24px;height:24px;border-radius:9999px;background:${c};border:3px solid #fff;box-shadow:0 3px 10px rgba(16,24,40,.35)"></span>`,
+  iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -14],
+})]));
+
+const USER_ICON = L.divIcon({
+  className: "",
+  html: '<span style="display:block;width:18px;height:18px;border-radius:9999px;background:#2563EB;border:3px solid #fff;box-shadow:0 0 0 6px rgba(37,99,235,.2),0 3px 10px rgba(16,24,40,.35)"></span>',
+  iconSize: [18, 18], iconAnchor: [9, 9], popupAnchor: [0, -12],
+});
+const DEFAULT_CENTER = [-2.5, 118];
+
+function MapSync({ points, active, userPos }) {
+  const map = useMap();
+  const first = useRef(true);
+  const applied = useRef(false);
+  // Lokasi tiba setelah peta pernah dibuka: pusatkan sekali ke posisi pengguna.
+  useEffect(() => {
+    if (!userPos || applied.current || first.current) return;
+    applied.current = true;
+    map.setView([userPos.lat, userPos.lng], 7);
+  }, [map, userPos]);
+  useEffect(() => {
+    if (!active || !points.length) return;
+    map.invalidateSize();
+    if (first.current) {
+      first.current = false;
+      if (userPos) { applied.current = true; map.setView([userPos.lat, userPos.lng], 7); return; }
+    }
+    map.fitBounds(points.map((p) => [p.lat, p.lng]), { padding: [48, 48], maxZoom: 7 });
+  }, [map, points, active]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
 }
 
-const SEASONS = {
-  advent: {
-    name: "Adven", short: "Adven",
-    theme: "Masa menanti dengan sederhana dan penuh harap, termasuk dalam cara kita memakai bumi.",
-    verse: { ref: "Yesaya 11:6-9", t: "Nabi menggambarkan kedamaian ketika manusia dan makhluk lain hidup berdampingan tanpa saling merusak." },
-    missions: [
-      { t: "Kurangi satu belanja yang tidak perlu menjelang Natal", p: 40 },
-      { t: "Buat hiasan Natal dari bahan bekas", p: 30 },
-      { t: "Tanam atau rawat satu tanaman sebagai tanda penantian", p: 30 },
-    ],
-  },
-  natal: {
-    name: "Natal", short: "Natal",
-    theme: "Allah hadir di dunia yang nyata. Rayakan dengan syukur, bukan dengan limbah.",
-    verse: { ref: "Yohanes 1:14", t: "Firman menjadi manusia dan tinggal di antara kita, tanda bahwa dunia ciptaan ini berharga bagi Allah." },
-    missions: [
-      { t: "Habiskan makanan perayaan Natal keluargamu tanpa sisa", p: 40 },
-      { t: "Pilih kado tanpa plastik atau bungkus ulang kertas bekas", p: 30 },
-      { t: "Bagikan makanan atau pakaian layak pakai kepada sesama", p: 30 },
-    ],
-  },
-  epifani: {
-    name: "Epifani", short: "Epifani",
-    theme: "Terang yang menyatakan diri. Belajar melihat Pencipta lewat ciptaan di sekitar kita.",
-    verse: { ref: "Matius 2:9-10", t: "Orang-orang bijaksana dituntun oleh sebuah bintang, ciptaan yang menjadi penunjuk jalan menuju Kristus." },
-    missions: [
-      { t: "Amati satu bagian alam selama 10 menit tanpa ponsel", p: 40 },
-      { t: "Bagikan satu pengetahuan lingkungan kepada temanmu", p: 30 },
-      { t: "Jalan kaki atau naik angkutan umum untuk satu perjalanan", p: 30 },
-    ],
-  },
-  prapaskah: {
-    name: "Pra-Paska", short: "Pra-Paska",
-    theme: "Masa berpuasa dan bertobat. Menahan diri agar ada yang bisa dibagikan kepada sesama dan bumi.",
-    verse: { ref: "Yesaya 58:6-7", t: "Puasa yang dikehendaki Allah berujung pada keadilan: berbagi makanan dan perhatian kepada yang membutuhkan." },
-    missions: [
-      { t: "Puasa digital: hapus 50 berkas atau email yang tak perlu", p: 40 },
-      { t: "Puasa daging selama satu hari", p: 30 },
-      { t: "Salurkan hasil hematmu kepada sesama yang membutuhkan", p: 30 },
-    ],
-  },
-  paskah: {
-    name: "Paskah", short: "Paskah",
-    theme: "Kehidupan baru yang dimulai dari tanah. Pemulihan juga menjangkau ciptaan.",
-    verse: { ref: "Kolose 1:19-20", t: "Melalui Kristus Allah mendamaikan segala sesuatu dengan diri-Nya, termasuk ciptaan, bukan hanya manusia." },
-    missions: [
-      { t: "Tanam satu pohon atau tanaman baru sebagai tanda hidup baru", p: 40 },
-      { t: "Perbaiki satu barang rusak daripada membeli yang baru", p: 30 },
-      { t: "Pungut sampah di satu tempat umum", p: 30 },
-    ],
-  },
-  pentakosta: {
-    name: "Pentakosta", short: "Pentakosta",
-    theme: "Roh yang memperbarui. Digerakkan untuk bertindak bersama komunitas.",
-    verse: { ref: "Mazmur 104:30", t: "Roh Allah menciptakan dan memperbarui permukaan bumi, sumber pengharapan bagi pemulihan alam." },
-    missions: [
-      { t: "Ikut atau mulai kegiatan penghijauan bersama komunitasmu", p: 40 },
-      { t: "Ganti satu barang sekali pakai dengan yang bisa dipakai ulang", p: 30 },
-      { t: "Matikan semua perangkat yang tidak dipakai sepanjang hari", p: 30 },
-    ],
-  },
-  creation: {
-    name: "Masa Penciptaan", short: "Penciptaan",
-    theme: "1 September sampai 4 Oktober. Umat di berbagai belahan dunia merayakan dan merawat ciptaan bersama.",
-    verse: { ref: "Mazmur 104:24", t: "Bumi dipenuhi ciptaan Allah yang dijadikan dengan hikmat, dan semuanya layak dijaga." },
-    missions: [
-      { t: "Bersihkan satu area dari sampah bersama teman atau jemaat", p: 40 },
-      { t: "Doakan ciptaan dan sebutkan satu hal dari alam yang kamu syukuri", p: 30 },
-      { t: "Ajak satu orang memulai satu kebiasaan ramah lingkungan", p: 30 },
-    ],
-  },
-  biasa: {
-    name: "Masa Biasa", short: "Masa Biasa",
-    theme: "Bertumbuh dalam kesetiaan sehari-hari, seperti pohon yang berbuah pada musimnya.",
-    verse: { ref: "Mazmur 1:3", t: "Orang yang berakar pada firman Tuhan digambarkan seperti pohon di tepi aliran air yang berbuah pada waktunya." },
-    missions: [
-      { t: "Pilih satu kebiasaan ramah lingkungan dan jalani selama 7 hari", p: 40 },
-      { t: "Tulis satu hal dari alam yang kamu syukuri hari ini", p: 30 },
-      { t: "Kurangi satu plastik sekali pakai dalam rutinmu", p: 30 },
-    ],
-  },
-};
-const SEASON_ORDER = ["advent", "natal", "epifani", "prapaskah", "paskah", "pentakosta", "creation", "biasa"];
-const SEASON_KEY = "myworld_season_v1";
-function loadSeason() {
-  try { return JSON.parse(localStorage.getItem(SEASON_KEY)) || {}; } catch (e) { return {}; }
-}
-const fmtDay = (d) => d.toLocaleDateString("id-ID", { day: "numeric", month: "short" });
-
-function SeasonChallenge({ season, setSeason }) {
-  const now = new Date();
-  const t = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const ranges = [...seasonRanges(t.getFullYear()), ...seasonRanges(t.getFullYear() + 1)];
-  const current = ranges.find((r) => t >= r.start && t <= r.end);
-  const [view, setView] = useState(current.key);
-  const S = SEASONS[view];
-  const o = ranges.find((r) => r.key === view && r.end >= t);
-  const id = `${view}-${o.start.getFullYear()}`;
-  const done = season[id] || [];
-  const isNow = view === current.key;
-  const gotPts = done.reduce((a, i) => a + S.missions[i].p, 0);
-  const totalPts = S.missions.reduce((a, m) => a + m.p, 0);
-  const complete = done.length === S.missions.length;
-  const label = view === "natal" ? "25 Des – 5 Jan" : `${fmtDay(o.start)} – ${fmtDay(o.end)}`;
-  const nxt = ranges.filter((r) => r.start > t).sort((a, b) => a.start - b.start)[0];
-  const daysTo = (d) => Math.round((d - t) / 86400000);
-  const badges = Object.entries(season)
-    .filter(([k, v]) => v.length === 3 && SEASONS[k.split("-")[0]])
-    .map(([k]) => `${SEASONS[k.split("-")[0]].name} ${k.split("-")[1]}`);
-
-  const toggle = (i) => setSeason((prev) => {
-    const set = new Set(prev[id] || []);
-    set.has(i) ? set.delete(i) : set.add(i);
-    return { ...prev, [id]: [...set] };
-  });
-
+function EcoMap({ active, userPos }) {
+  const [cat, setCat] = useState("all");
+  const points = useMemo(() => (cat === "all" ? GEO_POINTS : GEO_POINTS.filter((p) => p.cat === cat)), [cat]);
+  const count = (k) => (k === "all" ? GEO_POINTS.length : GEO_POINTS.filter((p) => p.cat === k).length);
   return (
-    <Card>
-      <p className="text-xs font-semibold text-slate-500">Tantangan tahun gerejawi</p>
-      <div className="mt-1 flex items-start justify-between gap-3">
-        <h2 className="text-xl font-extrabold text-slate-900">{S.name}</h2>
-        <span className="mt-1 shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
-          style={{ background: isNow ? EMERALD : "#F2F4F7", color: isNow ? "#fff" : "#475467" }}>
-          {isNow ? "Sedang berlangsung" : `Mulai ${fmtDay(o.start)}`}
-        </span>
-      </div>
-      <p className="mt-0.5 text-xs font-semibold text-slate-400">{label}{!isNow && ` · ${daysTo(o.start)} hari lagi`}</p>
-      <p className="mt-2 text-sm leading-relaxed text-slate-600">{S.theme}</p>
-
-      <div className="-mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-1">
-        {SEASON_ORDER.map((k) => (
-          <button key={k} onClick={() => setView(k)}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${view === k ? "text-white" : "bg-slate-100 text-slate-600"}`}
-            style={view === k ? { background: EMERALD } : undefined}>
-            {SEASONS[k].short}{k === current.key && view !== k ? " •" : ""}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3">
-        <p className="text-[11px] font-bold" style={{ color: EMERALD }}>{S.verse.ref}</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{S.verse.t}</p>
-        <p className="mt-1 text-[11px] text-slate-400">Parafrase. Rujuk Alkitab terjemahanmu untuk teks lengkap.</p>
-      </div>
-
-      <div className="mt-4">
-        <div className="mb-2 flex items-center justify-between text-xs font-semibold">
-          <span className="text-slate-500">Kemajuan musim ini</span>
-          <span style={{ color: EMERALD }}>{gotPts}/{totalPts} poin</span>
-        </div>
-        <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
-          <div className="h-full rounded-full" style={{ width: `${(gotPts / totalPts) * 100}%`, background: EMERALD, transition: "width 900ms cubic-bezier(.22,1,.36,1)" }} />
-        </div>
-      </div>
-
-      <div className="mt-3 space-y-2">
-        {S.missions.map((m, i) => {
-          const on = done.includes(i);
+    <div className="space-y-4">
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        {GEO_CATS.map(({ key, label, icon: Icon }) => {
+          const on = cat === key;
           return (
-            <button key={i} onClick={() => toggle(i)}
-              className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors ${on ? "bg-emerald-50/70" : "bg-slate-50 hover:bg-slate-100"}`}>
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 transition-all"
-                style={{ borderColor: on ? EMERALD : "#D0D5DD", background: on ? EMERALD : "#fff" }}>
-                {on && <Check size={14} color="#fff" strokeWidth={3} />}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className={`block text-sm font-bold ${on ? "text-slate-400 line-through" : "text-slate-800"}`}>{m.t}</span>
-                <span className="block text-[11px] font-bold" style={{ color: EMERALD }}>+{m.p} poin</span>
-              </span>
+            <button key={key} onClick={() => setCat(key)} aria-pressed={on}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-xs font-bold shadow-[0_4px_14px_rgba(16,24,40,0.06)] transition-colors ${on ? "text-white" : "bg-white text-slate-600"}`}
+              style={on ? { background: EMERALD } : undefined}>
+              <Icon size={14} /> {label}
+              <span className={`rounded-full px-1.5 text-[10px] ${on ? "bg-white/20" : "bg-slate-100 text-slate-500"}`}>{count(key)}</span>
             </button>
           );
         })}
       </div>
 
-      {complete && (
-        <div className="mt-3 flex items-center gap-3 rounded-2xl bg-emerald-50 px-4 py-3">
-          <Award size={22} color={EMERALD} />
-          <p className="text-sm font-bold" style={{ color: EMERALD }}>Lencana {S.name} {o.start.getFullYear()} diraih</p>
-        </div>
-      )}
-      {isNow && nxt && (
-        <p className="mt-3 text-xs text-slate-400">Berikutnya: {SEASONS[nxt.key].name}, mulai {fmtDay(nxt.start)} ({daysTo(nxt.start)} hari lagi)</p>
-      )}
-      {badges.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {badges.map((b) => (
-            <span key={b} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">
-              <Award size={12} color={EMERALD} /> {b}
+      <div className="isolate overflow-hidden rounded-[2rem] bg-white shadow-[0_8px_30px_rgba(16,24,40,0.06)] [&_.leaflet-popup-content-wrapper]:rounded-[1.5rem] [&_.leaflet-popup-content-wrapper]:shadow-[0_8px_30px_rgba(16,24,40,0.18)] [&_.leaflet-popup-content]:m-4">
+        <MapContainer center={userPos ? [userPos.lat, userPos.lng] : DEFAULT_CENTER} zoom={userPos ? 7 : 4} scrollWheelZoom={false} className="h-[26rem] w-full">
+          <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          <MapSync points={points} active={active} userPos={userPos} />
+          {userPos && (
+            <Marker position={[userPos.lat, userPos.lng]} icon={USER_ICON}>
+              <Popup><div className="text-sm font-extrabold text-slate-900">Lokasi Anda</div></Popup>
+            </Marker>
+          )}
+          {points.map((p) => (
+            <Marker key={p.id} position={[p.lat, p.lng]} icon={PIN_ICONS[p.status]}>
+              <Popup>
+                <div className="min-w-[200px]">
+                  <div className="text-sm font-extrabold text-slate-900">{p.name}</div>
+                  <span className="mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white" style={{ background: STATUS_COLOR[p.status] }}>{p.status}</span>
+                  <div className="mt-2 text-xs leading-relaxed text-slate-600">{p.desc}</div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
+
+      <Card className="!p-4">
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(STATUS_COLOR).map(([k, c]) => (
+            <span key={k} className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: c }} /> {k} · {points.filter((p) => p.status === k).length}
             </span>
           ))}
         </div>
-      )}
-    </Card>
+        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Ketuk penanda untuk melihat detail lokasi. Titik dan status pada peta ini adalah data ilustrasi untuk prototipe, belum terhubung ke sensor atau instansi resmi.</p>
+      </Card>
+    </div>
   );
 }
 
@@ -802,12 +735,8 @@ const fmtLeft = (ms) => {
 function loadDays() {
   try { return JSON.parse(localStorage.getItem(DAYS_KEY)) || {}; } catch (e) { return {}; }
 }
-function stats(days, season = {}) {
+function stats(days) {
   let pts = 0, g = 0;
-  Object.entries(season).forEach(([k, idxs]) => {
-    const S = SEASONS[k.split("-")[0]];
-    if (S) idxs.forEach((i) => { pts += S.missions[i]?.p || 0; });
-  });
   Object.values(days).forEach((ids) => ids.forEach((id) => {
     const m = MISSIONS.find((x) => x.id === id);
     if (m) { pts += m.p; g += IMPACT_G[id] || 0; }
@@ -819,12 +748,12 @@ function stats(days, season = {}) {
   return { pts, g, streak };
 }
 
-function Missions({ days, setDays, season, today, msLeft }) {
+function Missions({ days, setDays, today, msLeft }) {
   const done = new Set(days[today] || []);
   const total = MISSIONS.reduce((a, m) => a + m.p, 0);
   const todayPts = MISSIONS.filter((m) => done.has(m.id)).reduce((a, m) => a + m.p, 0);
   const pct = Math.round((todayPts / total) * 100);
-  const { pts, g, streak } = stats(days, season);
+  const { pts, g, streak } = stats(days);
   const li = LEVELS.reduce((acc, l, i) => (pts >= l.at ? i : acc), 0);
   const next = LEVELS[li + 1];
   const lvlPct = next ? Math.round(((pts - LEVELS[li].at) / (next.at - LEVELS[li].at)) * 100) : 100;
@@ -890,9 +819,8 @@ function Missions({ days, setDays, season, today, msLeft }) {
 
       <Card className="!p-4">
         <p className="text-xs font-semibold text-slate-500">Renungan hari ini</p>
-        <p className="mt-1 text-sm font-extrabold" style={{ color: EMERALD }}>{verse.ref}</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-700">{verse.t}</p>
-        <p className="mt-2 text-[11px] text-slate-400">Parafrase. Rujuk Alkitab terjemahanmu untuk teks lengkap.</p>
+        <div className="mt-2"><AyatQuote verseRef={verse.ref} /></div>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">{verse.r}</p>
       </Card>
 
       <div className="space-y-3">
@@ -901,8 +829,8 @@ function Missions({ days, setDays, season, today, msLeft }) {
           const isNext = !on && MISSIONS.find((m) => !done.has(m.id))?.id === id;
           return (
             <button key={id} onClick={() => toggle(id)}
-              aria-pressed={on} className={`flex w-full items-center gap-4 rounded-3xl bg-white p-4 text-left shadow-[0_8px_30px_rgba(16,24,40,0.06)] transition-transform active:scale-[0.99] ${isNext ? "ring-2 ring-emerald-500/40" : ""}`}>
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-colors"
+              aria-pressed={on} className={`flex w-full items-center gap-4 rounded-[2rem] bg-white p-4 text-left shadow-[0_8px_30px_rgba(16,24,40,0.06)] transition-transform active:scale-[0.99] ${isNext ? "ring-2 ring-emerald-500/40" : ""}`}>
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-colors"
                 style={{ background: on ? EMERALD : "#ECFDF3" }}>
                 <Icon size={22} color={on ? "#fff" : EMERALD} />
               </span>
@@ -910,11 +838,10 @@ function Missions({ days, setDays, season, today, msLeft }) {
                 <span className="block text-[11px] font-bold tracking-wide" style={{ color: EMERALD }}>MISI {idx + 1}{isNext ? " · BERIKUTNYA" : on ? " · SELESAI" : ""}</span>
                 <span className={`mt-0.5 block text-sm font-extrabold transition-colors ${on ? "text-slate-400 line-through" : "text-slate-900"}`}>{t}</span>
                 <span className="mt-0.5 block text-xs leading-snug text-slate-500">{d}</span>
-                <span className="mt-1 block text-xs font-bold" style={{ color: EMERALD }}>+{p} poin · {id === 4 ? "dampaknya dihitung di tab Bersih" : `hemat ±${IMPACT_G[id]} g CO₂e`}</span>
-                <span className="mt-3 block rounded-2xl border-l-4 bg-emerald-50/60 px-3 py-2.5 transition-opacity"
-                  style={{ borderColor: EMERALD, opacity: on ? 0.7 : 1 }}>
-                  <span className="block text-[11px] font-bold" style={{ color: EMERALD }}>{v}</span>
-                  <span className="mt-0.5 block text-xs italic leading-relaxed text-slate-700">{r}</span>
+                <span className="mt-1 block text-xs font-bold" style={{ color: EMERALD }}>+{p} poin · {id === 4 ? "dampaknya dihitung di tab Bebas Emisi" : `hemat ±${IMPACT_G[id]} g CO₂e`}</span>
+                <span className="mt-3 block rounded-[1.5rem] bg-emerald-50/60 px-4 py-3 transition-opacity" style={{ opacity: on ? 0.7 : 1 }}>
+                  <AyatQuote verseRef={v} />
+                  <span className="mt-2 block text-xs leading-relaxed text-slate-600">{r}</span>
                 </span>
               </span>
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all"
@@ -937,18 +864,18 @@ function Missions({ days, setDays, season, today, msLeft }) {
   );
 }
 
-const TITLES = { hygiene: "Bersih Digital", sim: "Simulator Jejak", missions: "Misi Harian", season: "Yobel Bumi" };
+const TITLES = { hygiene: "Bebas Emisi", sim: "Simulator Jejak", missions: "Misi Harian", map: "Peta Ekologi" };
 const HygieneTab = memo(DigitalHygiene);
 const SimulatorTab = memo(Simulator);
-const SeasonTab = memo(SeasonChallenge);
+const MapTab = memo(EcoMap);
 const MissionsTab = memo(Missions);
 
 /* ---------- APP SHELL ---------- */
 const TABS = [
-  { key: "hygiene", label: "Bersih", icon: Droplets },
+  { key: "hygiene", label: "Bebas Emisi", icon: Droplets },
   { key: "sim", label: "Simulasi", icon: TreePine },
   { key: "missions", label: "Misi", icon: ListChecks },
-  { key: "season", label: "Yobel", icon: CalendarDays },
+  { key: "map", label: "Peta Ekologi", icon: MapPin },
 ];
 
 const AppHeader = memo(function AppHeader({ title, grams, pct }) {
@@ -957,7 +884,7 @@ const AppHeader = memo(function AppHeader({ title, grams, pct }) {
       <div className="flex items-center gap-3">
         <Logo size={48} />
         <div>
-          <h1 className="text-lg font-extrabold leading-tight tracking-tight">MyWORLD</h1>
+          <h1 className="bg-gradient-to-r from-emerald-600 to-cyan-500 bg-clip-text text-xl font-black leading-tight tracking-tight text-transparent">MyWORLD</h1>
           <p className="text-xs font-medium text-slate-500">{title}</p>
         </div>
       </div>
@@ -975,13 +902,13 @@ const AppHeader = memo(function AppHeader({ title, grams, pct }) {
 
 const TabBar = memo(function TabBar({ tab, onChange }) {
   return (
-      <nav className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-md rounded-[28px] border border-white/70 bg-white/70 p-2 shadow-[0_12px_40px_rgba(16,24,40,0.14)] backdrop-blur-xl">
+      <nav className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-md rounded-full border border-white/70 bg-white/70 p-2 shadow-[0_12px_40px_rgba(16,24,40,0.14)] backdrop-blur-xl">
         <div className="grid grid-cols-4 gap-1">
           {TABS.map(({ key, label, icon: Icon }) => {
             const on = tab === key;
             return (
               <button key={key} onClick={() => onChange(key)} aria-current={on ? "page" : undefined}
-                className="flex flex-col items-center gap-1 rounded-3xl py-2.5 transition-all"
+                className="flex flex-col items-center gap-1 rounded-full py-2.5 transition-all"
                 style={{ background: on ? EMERALD : "transparent" }}>
                 <Icon size={21} color={on ? "#fff" : "#667085"} strokeWidth={on ? 2.4 : 2} />
                 <span className={`text-[11px] font-bold ${on ? "text-white" : "text-slate-500"}`}>{label}</span>
@@ -997,17 +924,17 @@ function AboutSheet({ onClose }) {
   return (
         <div className="fixed inset-0 z-[60] flex items-end bg-black/40" onClick={() => onClose()}>
           <div role="dialog" aria-modal="true" aria-label="Tentang MyWORLD" onClick={(e) => e.stopPropagation()}
-            className="mx-auto max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-6 text-sm leading-relaxed text-slate-600">
+            className="mx-auto max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-white p-6 text-sm leading-relaxed text-slate-600">
             <h2 className="text-lg font-extrabold text-slate-900">Tentang MyWORLD</h2>
             <p className="mt-1">Aplikasi kecil untuk merawat ciptaan lewat kebiasaan harian, dari kotak masuk sampai meja makan.</p>
             <h3 className="mt-4 font-extrabold text-slate-900">Privasi</h3>
             <p>Mode Gmail hanya membaca pengirim, subjek, dan ukuran email promosi dan sosial yang berusia lebih dari 30 hari. Isi pesan tidak dibaca. Tidak ada server MyWORLD yang menyimpan datamu. Misi, poin, dan statistik hanya tersimpan di browser perangkat ini, dan hilang bila data browser dihapus. Akses Gmail bisa dicabut kapan saja lewat pengaturan keamanan akun Google.</p>
             <h3 className="mt-4 font-extrabold text-slate-900">Sumber dan batas angka</h3>
             <p>Semua angka adalah estimasi edukatif untuk menumbuhkan kesadaran, bukan audit karbon. Faktor emisi memakai rata-rata yang lazim dipakai: sekitar 4 g CO₂e per email standar (Mike Berners-Lee), serta kisaran emisi listrik dan transportasi dari rujukan umum seperti IPCC dan IEA. Hasil nyata berbeda untuk tiap orang.</p>
-            <h3 className="mt-4 font-extrabold text-slate-900">Mode contoh</h3>
-            <p>Tanpa Gmail, aplikasi memakai data ilustrasi. Foto ganda, berkas unduhan, dan cache belum bisa diakses dari browser, jadi fitur itu masuk rencana pengembangan versi Android.</p>
-            <p className="mt-4 text-xs text-slate-500">Renungan ayat adalah parafrase. Rujuk Alkitab terjemahanmu untuk teks lengkap.</p>
-            <button onClick={() => onClose()} className="mt-5 w-full rounded-2xl py-3.5 text-base font-extrabold text-white" style={{ background: EMERALD }}>Tutup</button>
+            <h3 className="mt-4 font-extrabold text-slate-900">Pemindaian Lokal Cerdas</h3>
+            <p>Versi prototipe memakai data ilustrasi yang diproses di perangkatmu tanpa mengirim apa pun ke server. Pemindaian berkas nyata (foto ganda, unduhan, cache) belum bisa dilakukan dari browser dan masuk rencana pengembangan versi Android. Data pada Peta Ekologi juga ilustrasi.</p>
+            <p className="mt-4 text-xs text-slate-500">Kutipan ayat memakai Alkitab Terjemahan Baru (TB), © Lembaga Alkitab Indonesia.</p>
+            <button onClick={() => onClose()} className="mt-5 w-full rounded-full py-3.5 text-base font-extrabold text-white" style={{ background: EMERALD }}>Tutup</button>
           </div>
         </div>
   );
@@ -1018,11 +945,16 @@ export default function App() {
   const [hyg, setHyg] = useState(loadHyg);
   const [days, setDays] = useState(loadDays);
   const { today, msLeft } = useClock();
-  const [about, setAbout] = useState(false);
-  const [season, setSeason] = useState(loadSeason);
+  const [userPos, setUserPos] = useState(null);
   useEffect(() => {
-    try { localStorage.setItem(SEASON_KEY, JSON.stringify(season)); } catch (e) { /* abaikan */ }
-  }, [season]);
+    if (!("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (p) => setUserPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => { /* ditolak atau gagal: tetap memakai koordinat bawaan */ },
+      { timeout: 10000, maximumAge: 300000 }
+    );
+  }, []);
+  const [about, setAbout] = useState(false);
   useEffect(() => {
     try { localStorage.setItem(DAYS_KEY, JSON.stringify(days)); } catch (e) { /* abaikan */ }
   }, [days]);
@@ -1049,20 +981,20 @@ export default function App() {
     const done = new Set(days[today] || []);
     const total = MISSIONS.reduce((a, m) => a + m.p, 0);
     const got = MISSIONS.filter((m) => done.has(m.id)).reduce((a, m) => a + m.p, 0);
-    return { pct: Math.round((got / total) * 100), missionG: stats(days, season).g };
-  }, [days, season, today]);
+    return { pct: Math.round((got / total) * 100), missionG: stats(days).g };
+  }, [days, today]);
 
   return (
-    <div className="min-h-screen bg-[#F4F5F7] text-slate-900" style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}>
+    <div className="min-h-screen bg-[#F4F5F7] text-slate-900" style={{ fontFamily: "'Circular Std', 'Circular', Helvetica, Arial, sans-serif" }}>
 
-      <div className="mx-auto max-w-md px-4 pb-32 pt-6">
+      <div className="mx-auto max-w-md px-4 pb-36 pt-6">
         <AppHeader title={TITLES[tab]} grams={Math.max(0, hyg.g) + missionG} pct={pct} />
 
         <main>
           <div hidden={tab !== "hygiene"}><HygieneTab freedKb={hyg.kb} savedG={hyg.g} onSaved={handleSaved} /></div>
           <div hidden={tab !== "sim"}><SimulatorTab /></div>
-          <div hidden={tab !== "season"}><SeasonTab season={season} setSeason={setSeason} /></div>
-          <div hidden={tab !== "missions"}><MissionsTab days={days} setDays={setDays} season={season} today={today} msLeft={msLeft} /></div>
+          <div hidden={tab !== "map"}><MapTab active={tab === "map"} userPos={userPos} /></div>
+          <div hidden={tab !== "missions"}><MissionsTab days={days} setDays={setDays} today={today} msLeft={msLeft} /></div>
         </main>
         <button onClick={() => setAbout(true)} className="mx-auto mt-6 flex items-center gap-1.5 text-xs font-bold text-slate-500">
           <Info size={13} /> Tentang, privasi, dan sumber angka
