@@ -796,17 +796,17 @@ function weatherLabel(d) {
   return isRainy(d) ? "Hujan" : "Berawan";
 }
 
-// Satu kalimat saran singkat, menyesuaikan cuaca di lokasi saat ini
+// Satu kalimat saran, menyesuaikan cuaca di lokasi saat ini
 function weatherAdvice(d, place) {
   if (d.aqi !== null && d.aqi > 100)
-    return `Udara di ${place} kurang sehat, minimalkan pemakaian kendaraan bermotor hari ini.`;
+    return `Udara kurang sehat di ${place}. Kurangi motor untuk jarak dekat, jangan bakar sampah, dan pakai masker bila perlu keluar.`;
   if (isRainy(d))
-    return `Hujan di ${place}, tampung airnya untuk menyiram tanaman nanti.`;
+    return `Sedang hujan di ${place}. Tampung air hujan untuk menyiram tanaman dan jemur pakaian di dalam ruangan, tanpa mesin pengering.`;
   if (d.temp >= 30)
-    return `Cuaca terik di ${place}, atur AC di suhu stabil 25°C agar hemat listrik.`;
+    return `Cuaca panas di ${place}. Jaga suhu pendingin ruangan tetap efisien di 25–26°C dan hindari penggunaan plastik sekali pakai hari ini.`;
   if (d.temp <= 24)
-    return `Udara sejuk di ${place}, matikan pendingin ruangan dan buka sirkulasi alami.`;
-  return `Cuaca cerah di ${place}, optimalkan jalan kaki untuk jarak dekat hari ini.`;
+    return `Cuaca sejuk di ${place}. Cukup buka jendela atau pakai kipas tanpa AC, hemat listrik sekaligus menekan emisi.`;
+  return `Cuaca bersahabat di ${place}. Jemur pakaian di bawah matahari, berjalan kaki untuk jarak dekat, dan bawa tumbler sendiri.`;
 }
 
 function WeatherCard({ pos, onNavigate }) {
@@ -818,24 +818,25 @@ function WeatherCard({ pos, onNavigate }) {
   const Icon = isRainy(data) ? CloudRain : data.code <= 1 ? Sun : Cloud;
 
   return (
-    <Card className="bg-gradient-to-br from-indigo-50/40 via-white to-sky-50/40 !p-6">
-      <div className="flex items-start justify-between gap-4">
-        <h2 className="text-2xl font-extrabold leading-snug tracking-tight text-slate-900">
-          {Math.round(data.temp)}°C • {weatherLabel(data)} di {place}
+    <Card className="bg-gradient-to-br from-blue-50/50 to-white !p-5">
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="text-xl font-extrabold leading-snug text-slate-900">
+          {weatherLabel(data)} di {place}, {Math.round(data.temp)}°C
         </h2>
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white shadow-[0_4px_14px_rgba(16,24,40,0.08)] ring-1 ring-slate-100">
-          <Icon size={24} color={EMERALD} />
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white shadow-[0_2px_8px_rgba(16,24,40,0.08)]">
+          <Icon size={22} color={EMERALD} />
         </span>
       </div>
-      <p className="mt-3 text-sm leading-relaxed text-slate-600">{weatherAdvice(data, place)}</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-slate-500">{weatherAdvice(data, place)}</p>
 
-      <div className="mt-5 grid grid-cols-2 gap-2.5">
+      <div className="mt-4 flex gap-2">
         <button onClick={() => onNavigate?.("map")}
-          className="rounded-full bg-[#027A48] px-4 py-3 text-sm font-extrabold text-white shadow-[0_6px_16px_rgba(2,122,72,0.22)] transition-transform active:scale-[0.97]">
+          className="rounded-full px-4 py-2 text-xs font-extrabold text-white transition-transform active:scale-[0.97]"
+          style={{ background: EMERALD }}>
           Lihat Peta
         </button>
         <button onClick={() => onNavigate?.("missions")}
-          className="rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold text-slate-800 transition-transform active:scale-[0.97]">
+          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-extrabold text-slate-800 transition-transform active:scale-[0.97]">
           Misi Ekologi
         </button>
       </div>
