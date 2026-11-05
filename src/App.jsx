@@ -373,11 +373,6 @@ function CarbonBanner() {
       <p className="mt-2 text-sm leading-relaxed text-emerald-50">
         Setiap email yang kamu simpan, foto dobel, dan berkas lama berada di server fisik yang menyala dan didinginkan 24 jam nonstop. Makin menumpuk, makin besar listrik dan emisi karbon yang dibutuhkan. Menghapus yang tak perlu adalah cara kecil yang nyata untuk merawat bumi.
       </p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {["Listrik 24 jam", "Pendingin nonstop", "Emisi karbon"].map((t) => (
-          <span key={t} className="rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-bold">{t}</span>
-        ))}
-      </div>
     </section>
   );
 }
@@ -610,6 +605,14 @@ const GEO_POINTS = [
   { id: 8, name: "Hilir Sungai Sipoholon", cat: "air", status: "Kritis", lat: 2.0650, lng: 98.9200, desc: "Titik simulasi aliran dengan penumpukan sampah plastik dan limbah ternak yang menurunkan kualitas air bagi warga di hilir." },
   { id: 9, name: "Pasar Tarutung", cat: "limbah", status: "Kritis", lat: 2.0200, lng: 98.9600, desc: "Sampah organik dan plastik pasar menumpuk cepat dan sering terbuang sembarangan. Pemilahan serta pengomposan sisa sayur bisa mengurangi timbunan." },
   { id: 10, name: "Permukiman Sipoholon", cat: "limbah", status: "Waspada", lat: 2.0400, lng: 98.9450, desc: "Pengelolaan sampah rumah tangga belum merata sehingga sebagian dibakar atau dibuang ke kebun. Mulai dari memilah sampah organik dan anorganik." },
+  // Titik simulasi edukatif di kota-kota besar, agar pengguna dari luar Tapanuli Utara tetap melihat data di sekitar mereka
+  { id: 11, name: "Bundaran HI, Jakarta Pusat", cat: "udara", status: "Kritis", lat: -6.1950, lng: 106.8230, desc: "Titik simulasi kawasan padat kendaraan dengan polusi udara tinggi pada jam sibuk. Naik transportasi umum, bersepeda, atau berjalan kaki membantu menurunkan emisi." },
+  { id: 12, name: "Taman Menteng, Jakarta Pusat", cat: "hutan", status: "Aman", lat: -6.1960, lng: 106.8350, desc: "Ruang hijau kota dengan pepohonan rindang yang membantu menyerap polutan dan menurunkan suhu sekitar. Taman seperti ini perlu dijaga dan diperbanyak." },
+  { id: 13, name: "Sungai Deli, Medan", cat: "air", status: "Kritis", lat: 3.5750, lng: 98.6800, desc: "Titik simulasi aliran sungai kota dengan sampah plastik dan limbah rumah tangga yang menumpuk. Jangan buang sampah ke sungai dan pilah sampah dari rumah." },
+  { id: 14, name: "Hulu Citarum, Dayeuhkolot, Bandung", cat: "air", status: "Waspada", lat: -6.9850, lng: 107.6280, desc: "Titik simulasi aliran sungai yang menerima limbah domestik dan sampah dari permukiman padat. Pengelolaan sampah di tingkat rumah tangga sangat menentukan kualitas airnya." },
+  { id: 15, name: "Hutan Kota Babakan Siliwangi, Bandung", cat: "hutan", status: "Aman", lat: -6.8900, lng: 107.6070, desc: "Hutan kota yang masih rimbun di tengah kawasan padat. Pepohonannya menjaga udara tetap sejuk dan menjadi tempat resapan air hujan." },
+  { id: 16, name: "Mangrove Wonorejo, Surabaya", cat: "hutan", status: "Waspada", lat: -7.3050, lng: 112.8330, desc: "Titik simulasi kawasan mangrove pesisir yang menahan abrasi, tetapi terancam sampah kiriman dan alih fungsi lahan. Menanam dan menjaga mangrove melindungi pantai." },
+  { id: 17, name: "Sekitar TPA Benowo, Surabaya", cat: "limbah", status: "Kritis", lat: -7.2300, lng: 112.6350, desc: "Titik simulasi kawasan pengolahan sampah dengan timbunan besar dan potensi bau serta pencemaran. Mengurangi sampah dari sumbernya adalah langkah paling efektif." },
 ];
 const PIN_ICONS = Object.fromEntries(Object.entries(STATUS_COLOR).map(([k, c]) => [k, L.divIcon({
   className: "",
@@ -624,15 +627,20 @@ const USER_ICON = L.divIcon({
 });
 const DEFAULT_CENTER = [2.0031, 98.9640]; // Tapanuli Utara
 const DEFAULT_ZOOM = 11; // pas untuk Tarutung, Sipoholon, Adiankoting, dan Siatas Barita
+const USER_ZOOM = 12; // zoom saat peta dipusatkan ke lokasi pengguna
 
-function MapSync({ active }) {
+function MapSync({ active, userPos }) {
   const map = useMap();
-  // Setiap kali tab Peta dibuka, fokuskan ke Tapanuli Utara.
+  const lat = userPos ? userPos.lat : null;
+  const lng = userPos ? userPos.lng : null;
+  // Setiap kali tab Peta dibuka (atau lokasi pengguna baru tersedia), pusatkan ke lokasi pengguna.
+  // Jika lokasi belum ada atau ditolak, gunakan DEFAULT_CENTER (Tapanuli Utara) sebagai fallback.
   useEffect(() => {
     if (!active) return;
     map.invalidateSize();
-    map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-  }, [map, active]);
+    if (lat !== null && lng !== null) map.setView([lat, lng], USER_ZOOM);
+    else map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  }, [map, active, lat, lng]);
   return null;
 }
 
@@ -657,9 +665,9 @@ function EcoMap({ active, userPos }) {
       </div>
 
       <div className="isolate overflow-hidden rounded-[2rem] bg-white shadow-[0_8px_30px_rgba(16,24,40,0.06)] [&_.leaflet-popup-content-wrapper]:rounded-[1.5rem] [&_.leaflet-popup-content-wrapper]:shadow-[0_8px_30px_rgba(16,24,40,0.18)] [&_.leaflet-popup-content]:m-4">
-        <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} scrollWheelZoom={false} className="h-[26rem] w-full">
+        <MapContainer center={userPos ? [userPos.lat, userPos.lng] : DEFAULT_CENTER} zoom={userPos ? USER_ZOOM : DEFAULT_ZOOM} scrollWheelZoom={false} className="h-[26rem] w-full">
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <MapSync active={active} />
+          <MapSync active={active} userPos={userPos} />
           {userPos && (
             <Marker position={[userPos.lat, userPos.lng]} icon={USER_ICON}>
               <Popup><div className="text-sm font-extrabold text-slate-900">Lokasi Anda</div></Popup>
@@ -687,7 +695,7 @@ function EcoMap({ active, userPos }) {
             </span>
           ))}
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Ketuk penanda untuk melihat detail lokasi. Titik dan status pada peta ini adalah simulasi edukatif untuk wilayah Tapanuli Utara, dengan koordinat perkiraan. Belum terhubung ke sensor atau instansi resmi.</p>
+        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Ketuk penanda untuk melihat detail lokasi. Titik dan status pada peta ini adalah simulasi edukatif untuk Tapanuli Utara dan beberapa kota besar (Jakarta, Medan, Bandung, Surabaya), dengan koordinat perkiraan. Belum terhubung ke sensor atau instansi resmi.</p>
       </Card>
     </div>
   );
@@ -775,67 +783,63 @@ function useWeather(pos) {
 
 const isRainy = (d) => d.rain > 0 || (d.code >= 51 && d.code <= 99);
 
-// Saran hemat energi dan ramah lingkungan, menyesuaikan cuaca di lokasi saat ini
-function weatherTips(d) {
-  const rainy = isRainy(d);
-  const t = d.temp;
-  const tips = [];
-
-  if (t <= 24) tips.push("Cuaca sejuk. Cukup buka jendela atau pakai kipas, tidak perlu AC. Hemat listrik dan emisi karbon.");
-  else if (t < 30) tips.push("Suhu masih nyaman. Pakai kipas dulu, dan kalau perlu AC, atur di 25–26°C saja.");
-  else tips.push("Cuaca panas. Kalau memakai AC, atur di 25–26°C, tutup tirai di siang hari, dan bantu dengan kipas supaya AC tidak bekerja berat.");
-
-  if (rainy) {
-    tips.push("Sedang hujan. Tampung air hujan untuk menyiram tanaman atau mencuci teras, jadi tidak boros air bersih.");
-    tips.push("Bawa jas hujan atau payung. Tetap bisa berjalan kaki atau naik angkutan umum tanpa kendaraan pribadi.");
-    tips.push("Jangan buang sampah ke selokan atau sungai. Sampah yang terbawa air hujan bisa menyumbat aliran dan memicu banjir.");
-    tips.push("Jemur pakaian di dalam ruangan dengan sirkulasi udara yang baik, tidak perlu mesin pengering.");
-  } else {
-    tips.push("Hari tidak hujan. Jemur pakaian di bawah matahari dan matikan lampu di siang hari karena cahaya alami sudah cukup.");
-    if (d.uv != null && d.uv >= 6) tips.push("Sinar UV cukup tinggi. Pakai topi atau payung saat di luar, dan bawa tumbler supaya tetap terhidrasi tanpa botol plastik.");
-    else tips.push("Cuaca mendukung untuk berjalan kaki atau bersepeda pada jarak dekat. Bawa tumbler dan tas belanja sendiri.");
-  }
-
-  if (d.aqi !== null && d.aqi > 100) tips.push("Kualitas udara kurang baik. Kurangi pemakaian motor untuk jarak dekat, jangan membakar sampah, dan pakai masker jika perlu keluar.");
-  else if (d.aqi !== null && d.aqi > 50) tips.push("Kualitas udara sedang. Bantu menjaganya dengan tidak membakar sampah dan memilih jalan kaki untuk jarak dekat.");
-  else if (d.aqi !== null) tips.push("Udara tergolong bersih. Pertahankan dengan tidak membakar sampah dan menjaga pepohonan di sekitarmu.");
-
-  tips.push("Cabut charger dan matikan perangkat yang tidak dipakai agar tidak menyedot listrik diam-diam.");
-  return tips;
+function weatherLabel(d) {
+  const c = d.code;
+  if (c === 0) return "Cerah";
+  if (c === 1 || c === 2) return "Cerah berawan";
+  if (c === 3) return "Berawan";
+  if (c === 45 || c === 48) return "Berkabut";
+  if (c >= 95) return "Badai petir";
+  if (c >= 80) return "Hujan deras";
+  if (c >= 61) return "Hujan";
+  if (c >= 51) return "Gerimis";
+  return isRainy(d) ? "Hujan" : "Berawan";
 }
 
-function WeatherCard({ pos }) {
+// Satu kalimat saran, menyesuaikan cuaca di lokasi saat ini
+function weatherAdvice(d, place) {
+  if (d.aqi !== null && d.aqi > 100)
+    return `Udara kurang sehat di ${place}. Kurangi motor untuk jarak dekat, jangan bakar sampah, dan pakai masker bila perlu keluar.`;
+  if (isRainy(d))
+    return `Sedang hujan di ${place}. Tampung air hujan untuk menyiram tanaman dan jemur pakaian di dalam ruangan, tanpa mesin pengering.`;
+  if (d.temp >= 30)
+    return `Cuaca panas di ${place}. Jaga suhu pendingin ruangan tetap efisien di 25–26°C dan hindari penggunaan plastik sekali pakai hari ini.`;
+  if (d.temp <= 24)
+    return `Cuaca sejuk di ${place}. Cukup buka jendela atau pakai kipas tanpa AC, hemat listrik sekaligus menekan emisi.`;
+  return `Cuaca bersahabat di ${place}. Jemur pakaian di bawah matahari, berjalan kaki untuk jarak dekat, dan bawa tumbler sendiri.`;
+}
+
+function WeatherCard({ pos, onNavigate }) {
   const { status, data } = useWeather(pos);
   if (status === "loading") return <Card className="!p-4"><p className="text-xs font-medium text-slate-500">Memuat cuaca…</p></Card>;
   if (status === "error") return <Card className="!p-4"><p className="text-xs font-medium text-slate-500">Cuaca belum bisa dimuat. Periksa koneksi internet, lalu buka ulang aplikasi ini.</p></Card>;
-  const rainy = isRainy(data);
-  const Icon = rainy ? CloudRain : data.code <= 1 ? Sun : Cloud;
+
+  const place = pos ? "lokasimu" : "Tarutung";
+  const Icon = isRainy(data) ? CloudRain : data.code <= 1 ? Sun : Cloud;
+
   return (
-    <Card className="!p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold text-slate-500">Cuaca hari ini · {pos ? "lokasimu" : "Tapanuli Utara"}</p>
-          <p className="mt-1 text-2xl font-extrabold text-slate-900">{Math.round(data.temp)}°C</p>
-        </div>
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50"><Icon size={24} color={EMERALD} /></span>
+    <Card className="bg-gradient-to-br from-blue-50/50 to-white !p-5">
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="text-xl font-extrabold leading-snug text-slate-900">
+          {weatherLabel(data)} di {place}, {Math.round(data.temp)}°C
+        </h2>
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white shadow-[0_2px_8px_rgba(16,24,40,0.08)]">
+          <Icon size={22} color={EMERALD} />
+        </span>
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {data.uv != null && <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700">UV {Math.round(data.uv)}</span>}
-        {data.aqi !== null && <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700">Indeks udara {Math.round(data.aqi)}</span>}
-        {rainy && <span className="rounded-full bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-700">Hujan {data.rain} mm</span>}
+      <p className="mt-1.5 text-sm leading-relaxed text-slate-500">{weatherAdvice(data, place)}</p>
+
+      <div className="mt-4 flex gap-2">
+        <button onClick={() => onNavigate?.("map")}
+          className="rounded-full px-4 py-2 text-xs font-extrabold text-white transition-transform active:scale-[0.97]"
+          style={{ background: EMERALD }}>
+          Lihat Peta
+        </button>
+        <button onClick={() => onNavigate?.("missions")}
+          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-extrabold text-slate-800 transition-transform active:scale-[0.97]">
+          Misi Ekologi
+        </button>
       </div>
-      <div className="mt-4 rounded-[1.5rem] bg-emerald-50/70 p-4">
-        <p className="flex items-center gap-1.5 text-xs font-extrabold" style={{ color: EMERALD }}><Leaf size={14} /> Saran untuk cuaca saat ini</p>
-        <ul className="mt-2 space-y-2">
-          {weatherTips(data).map((s) => (
-            <li key={s} className="flex gap-2 text-xs leading-relaxed text-slate-700">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: EMERALD }} />
-              <span>{s}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <p className="mt-3 text-[11px] leading-relaxed text-slate-400">Data cuaca dan kualitas udara berasal dari model Open-Meteo, bukan pengukuran sensor resmi.</p>
     </Card>
   );
 }
@@ -1102,7 +1106,7 @@ export default function App() {
 
         <main>
           <div hidden={tab !== "home"} className="space-y-4">
-            <WeatherCard pos={userPos} />
+            <WeatherCard pos={userPos} onNavigate={setTab} />
             <HygieneTab freedKb={hyg.kb} savedG={hyg.g} onSaved={handleSaved} />
           </div>
           <div hidden={tab !== "sim"}><SimulatorTab /></div>
