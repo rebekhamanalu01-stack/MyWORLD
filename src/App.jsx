@@ -546,15 +546,37 @@ function Simulator() {
 // Selama masih kosong, aplikasi hanya menampilkan rujukan ayatnya.
 const AYAT_TB = {
   "Mazmur 24:1": "TUHANlah yang empunya bumi serta segala isinya, dan dunia serta yang diam di dalamnya.",
-  "Kejadian 2:15": "TUHAN Allah mengambil manusia itu dan menempatkannya dalam taman Eden untuk mengusahakan dan memelihara taman itu.",
-  "Amsal 12:10": "Orang benar memperhatikan hidup hewannya, tetapi belas kasihan orang fasik itu kejam.",
-  
+  "Kejadian 2:15": "",
+  "Amsal 12:10": "",
+  "Roma 8:19-21": "",
+  "Lukas 16:10": "",
+  "Yohanes 6:12": "",
+  "Lukas 12:15": "",
+  "Mazmur 19:2": "",
+  "Imamat 25:23": "",
+  "Ulangan 20:19": "",
+  "Ayub 12:7-10": "",
+  "Yesaya 24:4-5": "",
+  "Matius 6:26": "",
+  "Kolose 1:15-20": "",
+  "Wahyu 11:18": "",
 };
 
 const VERSES = [
   { ref: "Mazmur 24:1", r: "Kita adalah penjaga, bukan pemilik, atas segala yang dipercayakan kepada kita." },
   { ref: "Kejadian 2:15", r: "Merawat bumi bukan tambahan, melainkan bagian dari panggilan sejak semula." },
   { ref: "Amsal 12:10", r: "Kepedulian kepada makhluk lain mencerminkan hati yang benar." },
+  { ref: "Roma 8:19-21", r: "Pemulihan ciptaan adalah harapan bersama yang kita kerjakan lewat pilihan sehari-hari." },
+  { ref: "Imamat 25:23", r: "Tanah tidak sepenuhnya milik kita. Kita hanyalah penumpang dan penggarap, jadi rawatlah agar layak diwariskan." },
+  { ref: "Ulangan 20:19", r: "Bahkan di tengah perang, pohon buah dilindungi. Apalagi di masa damai, pohon layak kita jaga." },
+  { ref: "Ayub 12:7-10", r: "Hewan, burung, dan bumi sendiri menjadi guru yang bersaksi tentang tangan Tuhan. Mari belajar mendengarkan mereka." },
+  { ref: "Yesaya 24:4-5", r: "Ketika manusia merusak bumi, bumi pun berduka. Kerusakan alam adalah soal iman dan tanggung jawab, bukan sekadar teknis." },
+  { ref: "Matius 6:26", r: "Tuhan memelihara burung-burung di udara. Jika Ia peduli pada mereka, kita pun terpanggil ikut menjaga rumah mereka." },
+  { ref: "Kolose 1:15-20", r: "Kristus mendamaikan segala sesuatu, termasuk seluruh ciptaan. Karya penebusan-Nya mencakup bumi dan isinya." },
+  { ref: "Yohanes 6:12", r: "Yesus meminta sisa makanan dikumpulkan agar tidak ada yang terbuang. Menghabiskan makanan adalah bentuk syukur." },
+  { ref: "Lukas 12:15", r: "Hidup bukan ditentukan oleh banyaknya harta. Hidup sederhana dan tidak berlebihan menolong bumi bernapas lega." },
+  { ref: "Lukas 16:10", r: "Setia dalam perkara kecil seperti membuang sampah pada tempatnya adalah latihan setia dalam perkara besar." },
+  { ref: "Wahyu 11:18", r: "Tuhan akan membinasakan mereka yang membinasakan bumi. Merusak ciptaan adalah hal serius di hadapan-Nya." },
 ];
 
 
