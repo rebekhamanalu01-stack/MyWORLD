@@ -605,6 +605,14 @@ const GEO_POINTS = [
   { id: 8, name: "Hilir Sungai Sipoholon", cat: "air", status: "Kritis", lat: 2.0650, lng: 98.9200, desc: "Titik simulasi aliran dengan penumpukan sampah plastik dan limbah ternak yang menurunkan kualitas air bagi warga di hilir." },
   { id: 9, name: "Pasar Tarutung", cat: "limbah", status: "Kritis", lat: 2.0200, lng: 98.9600, desc: "Sampah organik dan plastik pasar menumpuk cepat dan sering terbuang sembarangan. Pemilahan serta pengomposan sisa sayur bisa mengurangi timbunan." },
   { id: 10, name: "Permukiman Sipoholon", cat: "limbah", status: "Waspada", lat: 2.0400, lng: 98.9450, desc: "Pengelolaan sampah rumah tangga belum merata sehingga sebagian dibakar atau dibuang ke kebun. Mulai dari memilah sampah organik dan anorganik." },
+  // Titik simulasi edukatif di kota-kota besar, agar pengguna dari luar Tapanuli Utara tetap melihat data di sekitar mereka
+  { id: 11, name: "Bundaran HI, Jakarta Pusat", cat: "udara", status: "Kritis", lat: -6.1950, lng: 106.8230, desc: "Titik simulasi kawasan padat kendaraan dengan polusi udara tinggi pada jam sibuk. Naik transportasi umum, bersepeda, atau berjalan kaki membantu menurunkan emisi." },
+  { id: 12, name: "Taman Menteng, Jakarta Pusat", cat: "hutan", status: "Aman", lat: -6.1960, lng: 106.8350, desc: "Ruang hijau kota dengan pepohonan rindang yang membantu menyerap polutan dan menurunkan suhu sekitar. Taman seperti ini perlu dijaga dan diperbanyak." },
+  { id: 13, name: "Sungai Deli, Medan", cat: "air", status: "Kritis", lat: 3.5750, lng: 98.6800, desc: "Titik simulasi aliran sungai kota dengan sampah plastik dan limbah rumah tangga yang menumpuk. Jangan buang sampah ke sungai dan pilah sampah dari rumah." },
+  { id: 14, name: "Hulu Citarum, Dayeuhkolot, Bandung", cat: "air", status: "Waspada", lat: -6.9850, lng: 107.6280, desc: "Titik simulasi aliran sungai yang menerima limbah domestik dan sampah dari permukiman padat. Pengelolaan sampah di tingkat rumah tangga sangat menentukan kualitas airnya." },
+  { id: 15, name: "Hutan Kota Babakan Siliwangi, Bandung", cat: "hutan", status: "Aman", lat: -6.8900, lng: 107.6070, desc: "Hutan kota yang masih rimbun di tengah kawasan padat. Pepohonannya menjaga udara tetap sejuk dan menjadi tempat resapan air hujan." },
+  { id: 16, name: "Mangrove Wonorejo, Surabaya", cat: "hutan", status: "Waspada", lat: -7.3050, lng: 112.8330, desc: "Titik simulasi kawasan mangrove pesisir yang menahan abrasi, tetapi terancam sampah kiriman dan alih fungsi lahan. Menanam dan menjaga mangrove melindungi pantai." },
+  { id: 17, name: "Sekitar TPA Benowo, Surabaya", cat: "limbah", status: "Kritis", lat: -7.2300, lng: 112.6350, desc: "Titik simulasi kawasan pengolahan sampah dengan timbunan besar dan potensi bau serta pencemaran. Mengurangi sampah dari sumbernya adalah langkah paling efektif." },
 ];
 const PIN_ICONS = Object.fromEntries(Object.entries(STATUS_COLOR).map(([k, c]) => [k, L.divIcon({
   className: "",
@@ -619,22 +627,59 @@ const USER_ICON = L.divIcon({
 });
 const DEFAULT_CENTER = [2.0031, 98.9640]; // Tapanuli Utara
 const DEFAULT_ZOOM = 11; // pas untuk Tarutung, Sipoholon, Adiankoting, dan Siatas Barita
+const USER_ZOOM = 12; // zoom saat peta dipusatkan ke lokasi pengguna
 
-function MapSync({ active }) {
+// Titik simulasi otomatis di sekitar lokasi pengguna, supaya peta tidak kosong di mana pun pengguna berada.
+// Hasilnya deterministik (seed dari koordinat yang dibulatkan), jadi posisi titik stabil dan tidak melompat saat dirender ulang.
+const NEARBY_TEMPLATES = [
+  { cat: "udara", status: "Waspada", name: "Jalan Utama Terdekat", desc: "Titik simulasi kawasan lalu lintas padat dengan asap kendaraan. Pilih jalan kaki, sepeda, atau angkutan umum untuk jarak dekat." },
+  { cat: "udara", status: "Aman", name: "Area Permukiman Hijau", desc: "Titik simulasi kawasan dengan banyak pepohonan dan lalu lintas ringan sehingga udaranya relatif bersih." },
+  { cat: "air", status: "Kritis", name: "Saluran Air Sekitar", desc: "Titik simulasi saluran air dengan sampah plastik dan limbah rumah tangga. Jangan buang sampah ke selokan atau sungai." },
+  { cat: "air", status: "Aman", name: "Sumber Air Terjaga", desc: "Titik simulasi sumber air yang masih jernih berkat vegetasi di sekitarnya. Menjaga tanaman di hulu menjaga kualitas air." },
+  { cat: "hutan", status: "Aman", name: "Taman dan Ruang Hijau", desc: "Titik simulasi ruang hijau yang menyerap polutan, menurunkan suhu, dan menjadi resapan air hujan." },
+  { cat: "hutan", status: "Waspada", name: "Lahan Hijau Menyusut", desc: "Titik simulasi lahan hijau yang mulai berkurang karena pembangunan. Menanam pohon pelindung membantu menahannya." },
+  { cat: "limbah", status: "Kritis", name: "Titik Penumpukan Sampah", desc: "Titik simulasi timbunan sampah organik dan plastik yang menumpuk cepat. Pemilahan dan pengomposan mengurangi timbunan." },
+  { cat: "limbah", status: "Waspada", name: "Pasar dan Pertokoan", desc: "Titik simulasi area dengan sampah kemasan yang cukup banyak. Bawa tas belanja dan tumbler sendiri untuk menguranginya." },
+];
+function makeNearbyPoints(pos) {
+  if (!pos) return [];
+  let seed = (Math.round(pos.lat * 100) * 73856093) ^ (Math.round(pos.lng * 100) * 19349663);
+  const rand = () => { // mulberry32
+    seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const cosLat = Math.max(Math.cos((pos.lat * Math.PI) / 180), 0.2);
+  return NEARBY_TEMPLATES.map((t, i) => {
+    const angle = ((i + rand() * 0.6) / NEARBY_TEMPLATES.length) * 2 * Math.PI; // sebar melingkar
+    const r = 0.006 + rand() * 0.034; // sekitar 0,7 - 4,5 km
+    return { ...t, id: 1000 + i, lat: pos.lat + r * Math.sin(angle), lng: pos.lng + (r * Math.cos(angle)) / cosLat };
+  });
+}
+
+function MapSync({ active, userPos }) {
   const map = useMap();
-  // Setiap kali tab Peta dibuka, fokuskan ke Tapanuli Utara.
+  const lat = userPos ? userPos.lat : null;
+  const lng = userPos ? userPos.lng : null;
+  // Setiap kali tab Peta dibuka (atau lokasi pengguna baru tersedia), pusatkan ke lokasi pengguna.
+  // Jika lokasi belum ada atau ditolak, gunakan DEFAULT_CENTER (Tapanuli Utara) sebagai fallback.
   useEffect(() => {
     if (!active) return;
     map.invalidateSize();
-    map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-  }, [map, active]);
+    if (lat !== null && lng !== null) map.setView([lat, lng], USER_ZOOM);
+    else map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+  }, [map, active, lat, lng]);
   return null;
 }
 
 function EcoMap({ active, userPos }) {
   const [cat, setCat] = useState("all");
-  const points = useMemo(() => (cat === "all" ? GEO_POINTS : GEO_POINTS.filter((p) => p.cat === cat)), [cat]);
-  const count = (k) => (k === "all" ? GEO_POINTS.length : GEO_POINTS.filter((p) => p.cat === k).length);
+  const lat = userPos ? userPos.lat : null;
+  const lng = userPos ? userPos.lng : null;
+  const allPoints = useMemo(() => [...GEO_POINTS, ...makeNearbyPoints(lat !== null ? { lat, lng } : null)], [lat, lng]);
+  const points = useMemo(() => (cat === "all" ? allPoints : allPoints.filter((p) => p.cat === cat)), [cat, allPoints]);
+  const count = (k) => (k === "all" ? allPoints.length : allPoints.filter((p) => p.cat === k).length);
   return (
     <div className="space-y-4">
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -651,10 +696,10 @@ function EcoMap({ active, userPos }) {
         })}
       </div>
 
-      <div className="isolate overflow-hidden rounded-[2rem] bg-white shadow-[0_8px_30px_rgba(16,24,40,0.06)] [&_.leaflet-popup-content-wrapper]:rounded-[1.5rem] [&_.leaflet-popup-content-wrapper]:shadow-[0_8px_30px_rgba(16,24,40,0.18)] [&_.leaflet-popup-content]:m-4">
-        <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} scrollWheelZoom={false} className="h-[26rem] w-full">
+      <div className="relative isolate overflow-hidden rounded-[2rem] bg-white shadow-[0_8px_30px_rgba(16,24,40,0.06)] [&_.leaflet-popup-content-wrapper]:rounded-[1.5rem] [&_.leaflet-popup-content-wrapper]:shadow-[0_8px_30px_rgba(16,24,40,0.18)] [&_.leaflet-popup-content]:m-4">
+        <MapContainer center={userPos ? [userPos.lat, userPos.lng] : DEFAULT_CENTER} zoom={userPos ? USER_ZOOM : DEFAULT_ZOOM} scrollWheelZoom={false} className="h-[26rem] w-full">
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <MapSync active={active} />
+          <MapSync active={active} userPos={userPos} />
           {userPos && (
             <Marker position={[userPos.lat, userPos.lng]} icon={USER_ICON}>
               <Popup><div className="text-sm font-extrabold text-slate-900">Lokasi Anda</div></Popup>
@@ -665,13 +710,17 @@ function EcoMap({ active, userPos }) {
               <Popup>
                 <div className="min-w-[200px]">
                   <div className="text-sm font-extrabold text-slate-900">{p.name}</div>
-                  <span className="mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white" style={{ background: STATUS_COLOR[p.status] }}>{p.status}</span>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white" style={{ background: STATUS_COLOR[p.status] }}>{p.status}</span>
+                    <span className="inline-block rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-500">Data simulasi</span>
+                  </div>
                   <div className="mt-2 text-xs leading-relaxed text-slate-600">{p.desc}</div>
                 </div>
               </Popup>
             </Marker>
           ))}
         </MapContainer>
+        <span className="pointer-events-none absolute right-3 top-3 z-[1000] rounded-full bg-white/90 px-3 py-1 text-[10px] font-bold text-slate-500 shadow-[0_2px_8px_rgba(16,24,40,0.12)]">Data simulasi</span>
       </div>
 
       <Card className="!p-4">
@@ -682,7 +731,7 @@ function EcoMap({ active, userPos }) {
             </span>
           ))}
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Ketuk penanda untuk melihat detail lokasi. Titik dan status pada peta ini adalah simulasi edukatif untuk wilayah Tapanuli Utara, dengan koordinat perkiraan. Belum terhubung ke sensor atau instansi resmi.</p>
+        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Ketuk penanda untuk melihat detail lokasi. Semua titik dan status pada peta ini adalah simulasi edukatif dengan koordinat perkiraan. Titik di sekitar lokasi Anda dibuat otomatis sebagai contoh. Belum terhubung ke sensor atau instansi resmi.</p>
       </Card>
     </div>
   );
