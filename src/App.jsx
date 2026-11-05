@@ -4,7 +4,7 @@ import {
   Car, Snowflake, Beef, Tv, ShoppingBag, Droplets, Bike, Sparkles, ShieldCheck,
   CloudRain, Sun, Cloud, Home,
 } from "lucide-react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -629,8 +629,8 @@ const DEFAULT_CENTER = [2.0031, 98.9640]; // Tapanuli Utara
 const DEFAULT_ZOOM = 11; // pas untuk Tarutung, Sipoholon, Adiankoting, dan Siatas Barita
 const USER_ZOOM = 12; // zoom saat peta dipusatkan ke lokasi pengguna
 
-// Titik simulasi otomatis di sekitar lokasi pengguna, supaya peta tidak kosong di mana pun pengguna berada.
-// Hasilnya deterministik (seed dari koordinat yang dibulatkan), jadi posisi titik stabil dan tidak melompat saat dirender ulang.
+// Titik simulasi otomatis, supaya peta tidak kosong di mana pun pengguna berada atau menggeser peta.
+// Semua deterministik (seed dari koordinat), jadi posisi titik stabil dan tidak melompat saat dirender ulang.
 const NEARBY_TEMPLATES = [
   { cat: "udara", status: "Waspada", name: "Jalan Utama Terdekat", desc: "Titik simulasi kawasan lalu lintas padat dengan asap kendaraan. Pilih jalan kaki, sepeda, atau angkutan umum untuk jarak dekat." },
   { cat: "udara", status: "Aman", name: "Area Permukiman Hijau", desc: "Titik simulasi kawasan dengan banyak pepohonan dan lalu lintas ringan sehingga udaranya relatif bersih." },
@@ -641,21 +641,59 @@ const NEARBY_TEMPLATES = [
   { cat: "limbah", status: "Kritis", name: "Titik Penumpukan Sampah", desc: "Titik simulasi timbunan sampah organik dan plastik yang menumpuk cepat. Pemilahan dan pengomposan mengurangi timbunan." },
   { cat: "limbah", status: "Waspada", name: "Pasar dan Pertokoan", desc: "Titik simulasi area dengan sampah kemasan yang cukup banyak. Bawa tas belanja dan tumbler sendiri untuk menguranginya." },
 ];
-function makeNearbyPoints(pos) {
-  if (!pos) return [];
-  let seed = (Math.round(pos.lat * 100) * 73856093) ^ (Math.round(pos.lng * 100) * 19349663);
-  const rand = () => { // mulberry32
-    seed = (seed + 0x6D2B79F5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+function makeRand(seed) { // mulberry32
+  let a = seed | 0;
+  return () => {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+// 8 titik rapat di sekitar lokasi pengguna (radius sekitar 0,7 - 4,5 km)
+function makeNearbyPoints(pos) {
+  if (!pos) return [];
+  const rand = makeRand((Math.round(pos.lat * 100) * 73856093) ^ (Math.round(pos.lng * 100) * 19349663));
   const cosLat = Math.max(Math.cos((pos.lat * Math.PI) / 180), 0.2);
   return NEARBY_TEMPLATES.map((t, i) => {
-    const angle = ((i + rand() * 0.6) / NEARBY_TEMPLATES.length) * 2 * Math.PI; // sebar melingkar
-    const r = 0.006 + rand() * 0.034; // sekitar 0,7 - 4,5 km
-    return { ...t, id: 1000 + i, lat: pos.lat + r * Math.sin(angle), lng: pos.lng + (r * Math.cos(angle)) / cosLat };
+    const angle = ((i + rand() * 0.6) / NEARBY_TEMPLATES.length) * 2 * Math.PI;
+    const r = 0.006 + rand() * 0.034;
+    return { ...t, id: `n${i}`, lat: pos.lat + r * Math.sin(angle), lng: pos.lng + (r * Math.cos(angle)) / cosLat };
   });
+}
+// Titik tersebar per sel grid (sekitar 9 km), dibuat untuk area di sekitar pusat peta yang sedang dilihat.
+// Dengan begini, ke mana pun peta digeser (atau jika izin lokasi ditolak), selalu ada titik.
+const GRID = 0.08;
+const GRID_MIN_ZOOM = 9;
+function makeGridPoints(ci, cj) {
+  const out = [];
+  for (let di = -3; di <= 3; di++) {
+    for (let dj = -3; dj <= 3; dj++) {
+      const i = ci + di, j = cj + dj;
+      const rand = makeRand((i * 73856093) ^ (j * 19349663) ^ 0x2F6B1A);
+      const n = rand() < 0.4 ? 1 : 2;
+      for (let k = 0; k < n; k++) {
+        const t = NEARBY_TEMPLATES[Math.floor(rand() * NEARBY_TEMPLATES.length)];
+        const lat = (i + rand()) * GRID, lng = (j + rand()) * GRID;
+        // Wilayah Tapanuli Utara sudah punya titik sendiri, jadi dilewati
+        if (Math.hypot(lat - DEFAULT_CENTER[0], lng - DEFAULT_CENTER[1]) < 0.25) continue;
+        out.push({ ...t, id: `g${i}_${j}_${k}`, lat, lng });
+      }
+    }
+  }
+  return out;
+}
+// Memantau pusat peta; state hanya berubah saat pindah sel grid, jadi tidak render ulang di setiap geseran kecil.
+function GridTracker({ onCell }) {
+  const map = useMap();
+  const report = () => {
+    if (map.getZoom() < GRID_MIN_ZOOM) { onCell(null); return; }
+    const c = map.getCenter();
+    onCell(`${Math.floor(c.lat / GRID)},${Math.floor(c.lng / GRID)}`);
+  };
+  useMapEvents({ moveend: report, zoomend: report });
+  useEffect(report, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
 }
 
 function MapSync({ active, userPos }) {
@@ -677,7 +715,13 @@ function EcoMap({ active, userPos }) {
   const [cat, setCat] = useState("all");
   const lat = userPos ? userPos.lat : null;
   const lng = userPos ? userPos.lng : null;
-  const allPoints = useMemo(() => [...GEO_POINTS, ...makeNearbyPoints(lat !== null ? { lat, lng } : null)], [lat, lng]);
+  const [cell, setCell] = useState(null);
+  const gridPoints = useMemo(() => {
+    if (!cell) return [];
+    const [ci, cj] = cell.split(",").map(Number);
+    return makeGridPoints(ci, cj);
+  }, [cell]);
+  const allPoints = useMemo(() => [...GEO_POINTS, ...makeNearbyPoints(lat !== null ? { lat, lng } : null), ...gridPoints], [lat, lng, gridPoints]);
   const points = useMemo(() => (cat === "all" ? allPoints : allPoints.filter((p) => p.cat === cat)), [cat, allPoints]);
   const count = (k) => (k === "all" ? allPoints.length : allPoints.filter((p) => p.cat === k).length);
   return (
@@ -700,6 +744,7 @@ function EcoMap({ active, userPos }) {
         <MapContainer center={userPos ? [userPos.lat, userPos.lng] : DEFAULT_CENTER} zoom={userPos ? USER_ZOOM : DEFAULT_ZOOM} scrollWheelZoom={false} className="h-[26rem] w-full">
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <MapSync active={active} userPos={userPos} />
+          <GridTracker onCell={setCell} />
           {userPos && (
             <Marker position={[userPos.lat, userPos.lng]} icon={USER_ICON}>
               <Popup><div className="text-sm font-extrabold text-slate-900">Lokasi Anda</div></Popup>
@@ -731,7 +776,7 @@ function EcoMap({ active, userPos }) {
             </span>
           ))}
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Ketuk penanda untuk melihat detail lokasi. Semua titik dan status pada peta ini adalah simulasi edukatif dengan koordinat perkiraan. Titik di sekitar lokasi Anda dibuat otomatis sebagai contoh. Belum terhubung ke sensor atau instansi resmi.</p>
+        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Ketuk penanda untuk melihat detail lokasi. Semua titik dan status pada peta ini adalah simulasi edukatif dengan koordinat perkiraan. Titik di luar Tapanuli Utara dibuat otomatis sebagai contoh dan akan berubah mengikuti area peta yang Anda lihat. Belum terhubung ke sensor atau instansi resmi.</p>
       </Card>
     </div>
   );
