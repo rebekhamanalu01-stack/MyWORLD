@@ -373,11 +373,6 @@ function CarbonBanner() {
       <p className="mt-2 text-sm leading-relaxed text-emerald-50">
         Setiap email yang kamu simpan, foto dobel, dan berkas lama berada di server fisik yang menyala dan didinginkan 24 jam nonstop. Makin menumpuk, makin besar listrik dan emisi karbon yang dibutuhkan. Menghapus yang tak perlu adalah cara kecil yang nyata untuk merawat bumi.
       </p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {["Listrik 24 jam", "Pendingin nonstop", "Emisi karbon"].map((t) => (
-          <span key={t} className="rounded-full bg-white/15 px-3 py-1.5 text-[11px] font-bold">{t}</span>
-        ))}
-      </div>
     </section>
   );
 }
@@ -811,10 +806,7 @@ function WeatherCard({ pos, onNavigate }) {
 
   return (
     <Card className="bg-gradient-to-br from-blue-50/50 to-white !p-5">
-      <div className="flex items-start justify-between">
-        <span className="inline-flex items-center rounded-full px-3 py-1 text-[10px] font-extrabold tracking-widest text-white" style={{ background: EMERALD }}>
-          ✦ WAWASAN LINGKUNGAN
-        </span>
+      <div className="flex items-start justify-end">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-[0_2px_8px_rgba(16,24,40,0.08)]">
           <Icon size={22} color={EMERALD} />
         </span>
@@ -824,7 +816,6 @@ function WeatherCard({ pos, onNavigate }) {
         {weatherLabel(data)} di {place}, {Math.round(data.temp)}°C
       </h2>
       <p className="mt-1.5 text-sm leading-relaxed text-slate-500">{weatherAdvice(data, place)}</p>
-      <p className="mt-2 text-[10px] text-slate-400">Sumber: model Open-Meteo, bukan sensor resmi.</p>
 
       <div className="mt-4 flex gap-2">
         <button onClick={() => onNavigate?.("map")}
