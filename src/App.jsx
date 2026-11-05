@@ -796,17 +796,17 @@ function weatherLabel(d) {
   return isRainy(d) ? "Hujan" : "Berawan";
 }
 
-// Satu kalimat saran, menyesuaikan cuaca di lokasi saat ini
+// Satu kalimat saran singkat, menyesuaikan cuaca di lokasi saat ini
 function weatherAdvice(d, place) {
   if (d.aqi !== null && d.aqi > 100)
-    return `Udara kurang sehat di ${place}. Kurangi motor untuk jarak dekat, jangan bakar sampah, dan pakai masker bila perlu keluar.`;
+    return `Udara di ${place} kurang sehat, minimalkan pemakaian kendaraan bermotor hari ini.`;
   if (isRainy(d))
-    return `Sedang hujan di ${place}. Tampung air hujan untuk menyiram tanaman dan jemur pakaian di dalam ruangan, tanpa mesin pengering.`;
+    return `Hujan di ${place}, tampung airnya untuk menyiram tanaman nanti.`;
   if (d.temp >= 30)
-    return `Cuaca panas di ${place}. Jaga suhu pendingin ruangan tetap efisien di 25–26°C dan hindari penggunaan plastik sekali pakai hari ini.`;
+    return `Cuaca terik di ${place}, atur AC di suhu stabil 25°C agar hemat listrik.`;
   if (d.temp <= 24)
-    return `Cuaca sejuk di ${place}. Cukup buka jendela atau pakai kipas tanpa AC, hemat listrik sekaligus menekan emisi.`;
-  return `Cuaca bersahabat di ${place}. Jemur pakaian di bawah matahari, berjalan kaki untuk jarak dekat, dan bawa tumbler sendiri.`;
+    return `Udara sejuk di ${place}, matikan pendingin ruangan dan buka sirkulasi alami.`;
+  return `Cuaca cerah di ${place}, optimalkan jalan kaki untuk jarak dekat hari ini.`;
 }
 
 function WeatherCard({ pos, onNavigate }) {
@@ -818,25 +818,24 @@ function WeatherCard({ pos, onNavigate }) {
   const Icon = isRainy(data) ? CloudRain : data.code <= 1 ? Sun : Cloud;
 
   return (
-    <Card className="bg-gradient-to-br from-blue-50/50 to-white !p-5">
-      <div className="flex items-start justify-between gap-3">
-        <h2 className="text-xl font-extrabold leading-snug text-slate-900">
-          {weatherLabel(data)} di {place}, {Math.round(data.temp)}°C
+    <Card className="bg-gradient-to-br from-indigo-50/40 via-white to-sky-50/40 !p-6">
+      <div className="flex items-start justify-between gap-4">
+        <h2 className="text-2xl font-extrabold leading-snug tracking-tight text-slate-900">
+          {Math.round(data.temp)}°C • {weatherLabel(data)} di {place}
         </h2>
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white shadow-[0_2px_8px_rgba(16,24,40,0.08)]">
-          <Icon size={22} color={EMERALD} />
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white shadow-[0_4px_14px_rgba(16,24,40,0.08)] ring-1 ring-slate-100">
+          <Icon size={24} color={EMERALD} />
         </span>
       </div>
-      <p className="mt-1.5 text-sm leading-relaxed text-slate-500">{weatherAdvice(data, place)}</p>
+      <p className="mt-3 text-sm leading-relaxed text-slate-600">{weatherAdvice(data, place)}</p>
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-5 grid grid-cols-2 gap-2.5">
         <button onClick={() => onNavigate?.("map")}
-          className="rounded-full px-4 py-2 text-xs font-extrabold text-white transition-transform active:scale-[0.97]"
-          style={{ background: EMERALD }}>
+          className="rounded-full bg-[#027A48] px-4 py-3 text-sm font-extrabold text-white shadow-[0_6px_16px_rgba(2,122,72,0.22)] transition-transform active:scale-[0.97]">
           Lihat Peta
         </button>
         <button onClick={() => onNavigate?.("missions")}
-          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-extrabold text-slate-800 transition-transform active:scale-[0.97]">
+          className="rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold text-slate-800 transition-transform active:scale-[0.97]">
           Misi Ekologi
         </button>
       </div>
@@ -1028,6 +1027,7 @@ function AboutSheet({ onClose }) {
             <p>Mode Gmail hanya membaca pengirim, subjek, dan ukuran email promosi dan sosial yang berusia lebih dari 30 hari. Isi pesan tidak dibaca. Tidak ada server MyWORLD yang menyimpan datamu. Misi, poin, dan statistik hanya tersimpan di browser perangkat ini, dan hilang bila data browser dihapus. Akses Gmail bisa dicabut kapan saja lewat pengaturan keamanan akun Google.</p>
             <h3 className="mt-4 font-extrabold text-slate-900">Sumber dan batas angka</h3>
             <p>Semua angka adalah estimasi edukatif untuk menumbuhkan kesadaran, bukan audit karbon. Faktor emisi memakai rata-rata yang lazim dipakai: sekitar 4 g CO₂e per email standar (Mike Berners-Lee), serta kisaran emisi listrik dan transportasi dari rujukan umum seperti IPCC dan IEA. Hasil nyata berbeda untuk tiap orang.</p>
+            <p className="mt-2">Data cuaca dan kualitas udara berasal dari Open-Meteo.com (lisensi CC BY 4.0). Angkanya hasil model, bukan sensor resmi.</p>
             <h3 className="mt-4 font-extrabold text-slate-900">Pemrosesan Lokal</h3>
             <p>Tanpa sambungan Gmail, data diproses di perangkatmu tanpa mengirim apa pun ke server. Pemindaian berkas di perangkat (foto ganda, unduhan, cache) belum bisa dilakukan dari browser dan masuk rencana pengembangan versi Android. Titik pada Peta Ekologi adalah simulasi edukatif wilayah Tapanuli Utara, bukan data sensor atau instansi resmi.</p>
             <p className="mt-4 text-xs text-slate-500">Kutipan ayat memakai Alkitab Terjemahan Baru (TB), © Lembaga Alkitab Indonesia.</p>
