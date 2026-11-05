@@ -806,15 +806,14 @@ function WeatherCard({ pos, onNavigate }) {
 
   return (
     <Card className="bg-gradient-to-br from-blue-50/50 to-white !p-5">
-      <div className="flex items-start justify-end">
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-[0_2px_8px_rgba(16,24,40,0.08)]">
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="text-xl font-extrabold leading-snug text-slate-900">
+          {weatherLabel(data)} di {place}, {Math.round(data.temp)}°C
+        </h2>
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white shadow-[0_2px_8px_rgba(16,24,40,0.08)]">
           <Icon size={22} color={EMERALD} />
         </span>
       </div>
-
-      <h2 className="mt-3 text-xl font-extrabold leading-snug text-slate-900">
-        {weatherLabel(data)} di {place}, {Math.round(data.temp)}°C
-      </h2>
       <p className="mt-1.5 text-sm leading-relaxed text-slate-500">{weatherAdvice(data, place)}</p>
 
       <div className="mt-4 flex gap-2">
