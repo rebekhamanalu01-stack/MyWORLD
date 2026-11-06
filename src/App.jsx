@@ -4,7 +4,7 @@ import {
   Car, Snowflake, Beef, Tv, ShoppingBag, Droplets, Bike, Sparkles, ShieldCheck,
   CloudRain, Sun, Cloud, Home,
 } from "lucide-react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -629,6 +629,47 @@ const DEFAULT_CENTER = [2.0031, 98.9640]; // Tapanuli Utara
 const DEFAULT_ZOOM = 11; // pas untuk Tarutung, Sipoholon, Adiankoting, dan Siatas Barita
 const USER_ZOOM = 12; // zoom saat peta dipusatkan ke lokasi pengguna
 
+/* ---------- Titik simulasi dinamis: dibangkitkan hanya di sekitar area yang sedang dilihat ---------- */
+const SIM_NAMES = {
+  udara: ["Stasiun Pantau Udara Lokal", "Titik Pantau Debu Jalan"],
+  air: ["Area Aliran Sungai", "Titik Pantau Air Permukaan"],
+  hutan: ["Titik Resapan Kota", "Area Tutupan Pohon"],
+  limbah: ["Titik Penumpukan Sampah", "Area Pengumpulan Sampah Warga"],
+};
+const SIM_DESC = {
+  udara: "Titik simulasi kualitas udara. Kendaraan dan pembakaran terbuka biasanya menjadi penyumbang utama polusi di area seperti ini.",
+  air: "Titik simulasi kualitas air. Sampah dan limbah rumah tangga di sekitar aliran dapat menurunkan kejernihan air.",
+  hutan: "Titik simulasi tutupan hijau. Pohon dan lahan resapan membantu menyerap karbon dan menahan air hujan.",
+  limbah: "Titik simulasi pengelolaan sampah. Pemilahan di sumber membantu mengurangi timbunan di area seperti ini.",
+};
+const SIM_STATUS = ["Aman", "Waspada", "Kritis"];
+const SIM_MAX = 5; // batas tetap agar peta tetap ringan
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+let simSeq = 0;
+function genSimPoints(center) {
+  const n = 3 + Math.floor(Math.random() * (SIM_MAX - 2)); // 3 sampai 5 titik
+  const cats = Object.keys(SIM_NAMES);
+  return Array.from({ length: n }, () => {
+    const cat = pick(cats);
+    return {
+      id: `sim-${++simSeq}`, sim: true, cat, name: pick(SIM_NAMES[cat]), status: pick(SIM_STATUS), desc: SIM_DESC[cat],
+      lat: center.lat + (Math.random() - 0.5) * 0.1, // +/- 0,05 derajat
+      lng: center.lng + (Math.random() - 0.5) * 0.1,
+    };
+  });
+}
+const SIM_ICONS = Object.fromEntries(Object.entries(STATUS_COLOR).map(([k, c]) => [k, L.divIcon({
+  className: "",
+  html: `<span style="display:block;width:22px;height:22px;border-radius:9999px;background:#fff;border:4px solid ${c};box-shadow:0 3px 10px rgba(16,24,40,.25)"></span>`,
+  iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -12],
+})]));
+
+// Setiap peta selesai digeser, titik simulasi lama ditimpa titik baru di sekitar pusat peta
+function SimPoints({ onChange }) {
+  useMapEvents({ moveend: (e) => onChange(genSimPoints(e.target.getCenter())) });
+  return null;
+}
+
 function MapSync({ active, userPos }) {
   const map = useMap();
   const lat = userPos ? userPos.lat : null;
@@ -647,7 +688,10 @@ function MapSync({ active, userPos }) {
 function EcoMap({ active, userPos }) {
   const [cat, setCat] = useState("all");
   const points = useMemo(() => (cat === "all" ? GEO_POINTS : GEO_POINTS.filter((p) => p.cat === cat)), [cat]);
-  const count = (k) => (k === "all" ? GEO_POINTS.length : GEO_POINTS.filter((p) => p.cat === k).length);
+  const [sim, setSim] = useState([]);
+  const simShown = useMemo(() => (cat === "all" ? sim : sim.filter((p) => p.cat === cat)), [sim, cat]);
+  const allShown = useMemo(() => [...points, ...simShown], [points, simShown]);
+  const count = (k) => (k === "all" ? GEO_POINTS.length + sim.length : GEO_POINTS.filter((p) => p.cat === k).length + sim.filter((p) => p.cat === k).length);
   return (
     <div className="space-y-4">
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -668,6 +712,7 @@ function EcoMap({ active, userPos }) {
         <MapContainer center={userPos ? [userPos.lat, userPos.lng] : DEFAULT_CENTER} zoom={userPos ? USER_ZOOM : DEFAULT_ZOOM} scrollWheelZoom={false} className="h-[26rem] w-full">
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <MapSync active={active} userPos={userPos} />
+          <SimPoints onChange={setSim} />
           {userPos && (
             <Marker position={[userPos.lat, userPos.lng]} icon={USER_ICON}>
               <Popup><div className="text-sm font-extrabold text-slate-900">Lokasi Anda</div></Popup>
@@ -684,6 +729,20 @@ function EcoMap({ active, userPos }) {
               </Popup>
             </Marker>
           ))}
+          {simShown.map((p) => (
+            <Marker key={p.id} position={[p.lat, p.lng]} icon={SIM_ICONS[p.status]}>
+              <Popup>
+                <div className="min-w-[200px]">
+                  <div className="text-sm font-extrabold text-slate-900">{p.name}</div>
+                  <div className="mt-1.5 flex gap-1.5">
+                    <span className="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white" style={{ background: STATUS_COLOR[p.status] }}>{p.status}</span>
+                    <span className="inline-block rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-slate-600">Titik simulasi</span>
+                  </div>
+                  <div className="mt-2 text-xs leading-relaxed text-slate-600">{p.desc}</div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
         </MapContainer>
       </div>
 
@@ -691,11 +750,11 @@ function EcoMap({ active, userPos }) {
         <div className="flex flex-wrap gap-2">
           {Object.entries(STATUS_COLOR).map(([k, c]) => (
             <span key={k} className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: c }} /> {k} · {points.filter((p) => p.status === k).length}
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: c }} /> {k} · {allShown.filter((p) => p.status === k).length}
             </span>
           ))}
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Ketuk penanda untuk melihat detail lokasi. Titik dan status pada peta ini adalah simulasi edukatif untuk Tapanuli Utara dan beberapa kota besar (Jakarta, Medan, Bandung, Surabaya), dengan koordinat perkiraan. Belum terhubung ke sensor atau instansi resmi.</p>
+        <p className="mt-3 text-[11px] leading-relaxed text-slate-500">Ketuk penanda untuk melihat detail lokasi. Titik dan status pada peta ini adalah simulasi edukatif untuk Tapanuli Utara dan beberapa kota besar (Jakarta, Medan, Bandung, Surabaya), dengan koordinat perkiraan. Belum terhubung ke sensor atau instansi resmi. Penanda bercincin kosong adalah titik simulasi yang dibangkitkan otomatis (3 sampai 5 titik) di sekitar area yang sedang kamu lihat, dan diganti setiap peta digeser.</p>
       </Card>
     </div>
   );
