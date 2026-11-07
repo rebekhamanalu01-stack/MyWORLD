@@ -77,11 +77,11 @@ const SAMPLE = [
   { id: "e1", from: "PromoMart", subject: "Diskon 70% hanya malam ini", kb: 820, co2: 4, cat: "Email" },
   { id: "e2", from: "TechWeekly", subject: "Newsletter edisi #284", kb: 2100, co2: 4, cat: "Email" },
   { id: "e3", from: "SocialApp", subject: "Ada 9 notifikasi baru untukmu", kb: 310, co2: 4, cat: "Email" },
-  { id: "f1", from: "Galeri", subject: "12 screenshot duplikat", kb: 3600, co2: 8, cat: "Foto" },
-  { id: "f2", from: "Galeri", subject: "Foto burst hasil bidikan ganda", kb: 5200, co2: 12, cat: "Foto" },
+  { id: "f1", from: "Galeri", subject: "12 tangkapan layar ganda", kb: 3600, co2: 8, cat: "Foto" },
+  { id: "f2", from: "Galeri", subject: "Foto beruntun dengan hasil serupa", kb: 5200, co2: 12, cat: "Foto" },
   { id: "b1", from: "Unduhan", subject: "Installer aplikasi lama", kb: 15400, co2: 15, cat: "Berkas" },
-  { id: "b2", from: "Unduhan", subject: "PDF materi kuliah salinan ganda", kb: 8400, co2: 10, cat: "Berkas" },
-  { id: "m1", from: "Grup chat", subject: "Video forward tahun lalu", kb: 22000, co2: 25, cat: "Media chat" },
+  { id: "b2", from: "Unduhan", subject: "PDF materi kuliah (salinan ganda)", kb: 8400, co2: 10, cat: "Berkas" },
+  { id: "m1", from: "Grup chat", subject: "Video kiriman ulang dari tahun lalu", kb: 22000, co2: 25, cat: "Media chat" },
   { id: "c1", from: "Cache aplikasi", subject: "Data sementara media sosial", kb: 31000, co2: 20, cat: "Cache" },
 ];
 
@@ -217,7 +217,7 @@ function DigitalHygieneBody({ freedKb, savedG, onSaved }) {
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50"><Mail size={30} color={EMERALD} /></div>
         <h2 className="mt-4 text-xl font-extrabold text-slate-900">Bersihkan jejak digitalmu</h2>
         <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
-          {CLIENT_ID ? "MyWORLD hanya membaca pengirim, subjek, dan ukuran email promosi dan sosial yang usianya lebih dari 30 hari. Isi pesanmu tidak dibaca dan tidak dikirim ke server mana pun." : "Email lama, foto dobel, unduhan yang terlupakan, sampai cache aplikasi. Semua yang menumpuk di perangkat dan server ikut menyedot energi. Yuk, rapikan."}
+          {CLIENT_ID ? "MyWORLD hanya membaca pengirim, subjek, dan ukuran email promosi dan sosial yang berusia lebih dari 30 hari. Isi pesanmu tidak dibaca dan tidak dikirim ke server mana pun." : "Email lama, foto ganda, unduhan terlupakan, sampai cache aplikasi: semuanya ikut menyedot energi, di perangkat maupun di server. Yuk, rapikan."}
         </p>
         <button onClick={connect} disabled={status === "loading"}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-full py-4 text-base font-extrabold text-white shadow-[0_8px_20px_rgba(2,122,72,0.25)] transition-all active:scale-[0.98] disabled:opacity-50"
@@ -225,7 +225,7 @@ function DigitalHygieneBody({ freedKb, savedG, onSaved }) {
           <Mail size={18} /> {status === "loading" ? "Memindai…" : CLIENT_ID ? "Hubungkan Gmail" : "Mulai pindai"}
         </button>
         {error && <p className="mt-3 text-sm font-semibold text-red-600">{error}</p>}
-        <p className="mt-4 text-[11px] leading-relaxed text-slate-400">{CLIENT_ID ? "Email yang dibersihkan dipindahkan ke Sampah dan bisa dipulihkan selama 30 hari." : "Pemrosesan Lokal: data diproses di perangkatmu dan tidak ada berkas yang diubah atau dihapus."}</p>
+        <p className="mt-4 text-[11px] leading-relaxed text-slate-400">{CLIENT_ID ? "Email yang dibersihkan dipindahkan ke Sampah dan bisa dipulihkan selama 30 hari." : "Pemrosesan lokal: semua dihitung di perangkatmu, dan tidak ada berkas yang diubah atau dihapus."}</p>
       </Card>
     );
   }
@@ -239,9 +239,9 @@ function DigitalHygieneBody({ freedKb, savedG, onSaved }) {
         </PopIn>
         <h2 className="mt-5 text-xl font-extrabold text-slate-900">Beres. Ruang digitalmu lebih lega.</h2>
         <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
-          {done.n} item ({mb}) sudah dibersihkan, setara ±{Math.round(done.g)} g CO₂e yang tak perlu lagi ditanggung server. Langkah kecil yang dilakukan berulang pasti terasa dampaknya.
+          {done.n} item ({mb}) sudah dibersihkan, setara ±{Math.round(done.g)} g CO₂e yang tak lagi dibebankan ke server. Langkah kecil yang rutin dilakukan akan terasa dampaknya.
         </p>
-        <p className="mt-3 max-w-xs text-xs text-slate-500">{token === "sample" ? "Pemrosesan Lokal: tidak ada berkas di perangkatmu yang diubah atau dihapus." : "Email ada di Sampah Gmail dan bisa dipulihkan selama 30 hari."}</p>
+        <p className="mt-3 max-w-xs text-xs text-slate-500">{token === "sample" ? "Pemrosesan lokal: tidak ada berkas di perangkatmu yang diubah atau dihapus." : "Email ada di Sampah Gmail dan bisa dipulihkan selama 30 hari."}</p>
         <button onClick={() => setDone(null)} className="mt-6 w-full rounded-full py-4 text-base font-extrabold text-white transition-transform active:scale-[0.98]" style={{ background: EMERALD }}>
           {mails.length ? "Lanjut merapikan" : "Selesai"}
         </button>
@@ -292,14 +292,14 @@ function DigitalHygieneBody({ freedKb, savedG, onSaved }) {
           <p className="mt-1 text-xl font-extrabold text-slate-900">{(animFreed / 1024).toFixed(2)} <span className="text-sm font-semibold text-slate-400">MB</span></p>
         </Card>
         <Card className="!p-4">
-          <p className="text-xs font-semibold text-slate-500">Emisi dihindari (estimasi)</p>
+          <p className="text-xs font-semibold text-slate-500">Emisi yang dihindari (estimasi)</p>
           <p className="mt-1 text-xl font-extrabold" style={{ color: EMERALD }}>{animG.toFixed(0)} <span className="text-sm font-semibold text-slate-400">g CO₂e</span></p>
         </Card>
       </div>
 
       <Card className="!p-2">
         <div className="flex items-center justify-between px-3 pb-1 pt-2">
-          <h3 className="text-sm font-extrabold text-slate-900">Daftar jejak ({shown.length})</h3>
+          <h3 className="text-sm font-extrabold text-slate-900">Daftar sampah digital ({shown.length})</h3>
           <button onClick={() => setSel(allSelected ? new Set() : new Set(shown.map((m) => m.id)))}
             className="rounded-full px-3 py-1 text-xs font-bold hover:bg-emerald-50" style={{ color: EMERALD }}>
             {allSelected ? "Batal pilih" : "Pilih semua"}
@@ -356,7 +356,7 @@ function DigitalHygieneBody({ freedKb, savedG, onSaved }) {
             style={{ background: EMERALD }}>
             <Trash2 size={18} /> {cleaning ? "Membersihkan…" : `Bersihkan ${sel.size || ""} ${noun}`}
           </button>
-          <p className="text-center text-[11px] text-slate-400">{token === "sample" ? "Pemrosesan Lokal: data diproses di perangkatmu dan tidak ada berkas yang diubah atau dihapus." : "Email dipindahkan ke Sampah Gmail dan bisa dipulihkan selama 30 hari."}</p>
+          <p className="text-center text-[11px] text-slate-400">{token === "sample" ? "Pemrosesan lokal: semua dihitung di perangkatmu, dan tidak ada berkas yang diubah atau dihapus." : "Email dipindahkan ke Sampah Gmail dan bisa dipulihkan selama 30 hari."}</p>
         </>
       )}
     </div>
@@ -365,13 +365,12 @@ function DigitalHygieneBody({ freedKb, savedG, onSaved }) {
 
 function CarbonBanner() {
   return (
-    <section className="relative overflow-hidden rounded-[2rem] p-6 text-white shadow-[0_12px_40px_rgba(2,122,72,0.22)]" style={{ background: EMERALD }}>
+    <section className="rounded-[2rem] p-5 text-white shadow-[0_12px_40px_rgba(2,122,72,0.22)]" style={{ background: EMERALD }}>
       <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold">
         <Info size={12} /> Tahukah kamu?
       </span>
-      <h2 className="mt-3 text-xl font-extrabold leading-snug">Sesederhana email masuk pun bisa ikut membebani bumi</h2>
-      <p className="mt-2 text-sm leading-relaxed text-emerald-50">
-        Setiap email yang kamu simpan, foto dobel, dan berkas lama berada di server fisik yang menyala dan didinginkan 24 jam nonstop. Makin menumpuk, makin besar listrik dan emisi karbon yang dibutuhkan. Menghapus yang tak perlu adalah cara kecil yang nyata untuk merawat bumi.
+      <p className="mt-3 text-sm font-medium leading-relaxed text-emerald-50">
+        Setiap email yang kamu simpan, foto ganda, dan berkas lama tersimpan di server fisik yang menyala dan didinginkan 24 jam nonstop. Makin menumpuk, makin besar listrik dan emisi karbon yang dibutuhkan. Membersihkan yang tak perlu adalah cara kecil untuk ikut merawat bumi.
       </p>
     </section>
   );
@@ -840,6 +839,41 @@ function useWeather(pos) {
   return w;
 }
 
+/* ---------- NAMA TEMPAT (Nominatim / OpenStreetMap), di-cache agar hemat permintaan ---------- */
+const PLACE_KEY = "myworld_place_v1";
+function readPlaceCache() {
+  try { return JSON.parse(localStorage.getItem(PLACE_KEY)) || {}; } catch (e) { return {}; }
+}
+function usePlaceName(pos) {
+  const [name, setName] = useState(null);
+  const lat = pos ? pos.lat : null;
+  const lng = pos ? pos.lng : null;
+  useEffect(() => {
+    if (lat === null || lng === null) { setName(null); return; }
+    const key = `${lat.toFixed(3)},${lng.toFixed(3)}`; // ketelitian ±110 m
+    const cached = readPlaceCache()[key];
+    if (cached) { setName(cached); return; }
+    const ctrl = new AbortController();
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=16&accept-language=id&lat=${lat}&lon=${lng}`, { signal: ctrl.signal })
+      .then((r) => r.json())
+      .then((j) => {
+        const a = j?.address || {};
+        const n = a.village || a.suburb || a.neighbourhood || a.hamlet || a.town || a.city_district || a.city || a.municipality || a.county || null;
+        if (!n) return;
+        setName(n);
+        try {
+          let c = readPlaceCache();
+          if (Object.keys(c).length > 20) c = {};
+          c[key] = n;
+          localStorage.setItem(PLACE_KEY, JSON.stringify(c));
+        } catch (e) { /* abaikan */ }
+      })
+      .catch(() => { /* gagal: tetap memakai "lokasimu" */ });
+    return () => ctrl.abort();
+  }, [lat, lng]);
+  return name;
+}
+
 const isRainy = (d) => d.rain > 0 || (d.code >= 51 && d.code <= 99);
 
 function weatherLabel(d) {
@@ -870,10 +904,11 @@ function weatherAdvice(d, place) {
 
 function WeatherCard({ pos, onNavigate }) {
   const { status, data } = useWeather(pos);
+  const placeName = usePlaceName(pos);
   if (status === "loading") return <Card className="!p-4"><p className="text-xs font-medium text-slate-500">Memuat cuaca…</p></Card>;
   if (status === "error") return <Card className="!p-4"><p className="text-xs font-medium text-slate-500">Cuaca belum bisa dimuat. Periksa koneksi internet, lalu buka ulang aplikasi ini.</p></Card>;
 
-  const place = pos ? "lokasimu" : "Tarutung";
+  const place = pos ? placeName || "lokasimu" : "Tarutung";
   const Icon = isRainy(data) ? CloudRain : data.code <= 1 ? Sun : Cloud;
 
   return (
@@ -1087,7 +1122,7 @@ function AboutSheet({ onClose }) {
             <p>Mode Gmail hanya membaca pengirim, subjek, dan ukuran email promosi dan sosial yang berusia lebih dari 30 hari. Isi pesan tidak dibaca. Tidak ada server MyWORLD yang menyimpan datamu. Misi, poin, dan statistik hanya tersimpan di browser perangkat ini, dan hilang bila data browser dihapus. Akses Gmail bisa dicabut kapan saja lewat pengaturan keamanan akun Google.</p>
             <h3 className="mt-4 font-extrabold text-slate-900">Sumber dan batas angka</h3>
             <p>Semua angka adalah estimasi edukatif untuk menumbuhkan kesadaran, bukan audit karbon. Faktor emisi memakai rata-rata yang lazim dipakai: sekitar 4 g CO₂e per email standar (Mike Berners-Lee), serta kisaran emisi listrik dan transportasi dari rujukan umum seperti IPCC dan IEA. Hasil nyata berbeda untuk tiap orang.</p>
-            <p className="mt-2">Data cuaca dan kualitas udara berasal dari Open-Meteo.com (lisensi CC BY 4.0). Angkanya hasil model, bukan sensor resmi.</p>
+            <p className="mt-2">Data cuaca dan kualitas udara berasal dari Open-Meteo.com (lisensi CC BY 4.0). Angkanya hasil model, bukan sensor resmi. Nama tempat berasal dari OpenStreetMap (Nominatim), © kontributor OpenStreetMap. Koordinat lokasimu dikirim ke Open-Meteo dan OpenStreetMap hanya untuk cuaca dan nama tempat.</p>
             <h3 className="mt-4 font-extrabold text-slate-900">Pemrosesan Lokal</h3>
             <p>Tanpa sambungan Gmail, data diproses di perangkatmu tanpa mengirim apa pun ke server. Pemindaian berkas di perangkat (foto ganda, unduhan, cache) belum bisa dilakukan dari browser dan masuk rencana pengembangan versi Android. Titik pada Peta Ekologi adalah simulasi edukatif wilayah Tapanuli Utara, bukan data sensor atau instansi resmi.</p>
             <p className="mt-4 text-xs text-slate-500">Kutipan ayat memakai Alkitab Terjemahan Baru (TB), © Lembaga Alkitab Indonesia.</p>
