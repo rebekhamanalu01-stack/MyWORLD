@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from "
 import {
   Leaf, Info, Mail, Trash2, Check, Sprout, TreePine, ListChecks, RotateCcw, Flame, Award, MapPin, Wind, Waves, Layers,
   Car, Snowflake, Beef, Tv, ShoppingBag, Droplets, Bike, Sparkles, ShieldCheck,
-  CloudRain, Sun, Cloud, Home,
+  CloudRain, Sun, Cloud, Home, Thermometer, Clock,
 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
@@ -67,320 +67,228 @@ const Logo = memo(function Logo({ size = 48 }) {
   );
 });
 
-/* ---------- TAB 1: SINKRON EMAIL (Gmail API) ---------- */
-// Kosongkan = pemrosesan lokal. Isi dengan Client ID Google OAuth jika ingin sinkronisasi Gmail.
-const CLIENT_ID = "";
-const GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me";
-const CO2_PER_EMAIL_G = 4; // estimasi edukatif per email tersimpan
+/* ---------- TAB 1: RADAR KESEHATAN LINGKUNGAN & PERJALANAN SEHAT ---------- */
+const clamp = (v, a = 0, b = 100) => Math.max(a, Math.min(b, v));
+const pad2 = (n) => String(n).padStart(2, "0");
 
-const SAMPLE = [
-  { id: "e1", from: "PromoMart", subject: "Diskon 70% hanya malam ini", kb: 820, co2: 4, cat: "Email" },
-  { id: "e2", from: "TechWeekly", subject: "Newsletter edisi #284", kb: 2100, co2: 4, cat: "Email" },
-  { id: "e3", from: "SocialApp", subject: "Ada 9 notifikasi baru untukmu", kb: 310, co2: 4, cat: "Email" },
-  { id: "f1", from: "Galeri", subject: "12 tangkapan layar ganda", kb: 3600, co2: 8, cat: "Foto" },
-  { id: "f2", from: "Galeri", subject: "Foto beruntun dengan hasil serupa", kb: 5200, co2: 12, cat: "Foto" },
-  { id: "b1", from: "Unduhan", subject: "Installer aplikasi lama", kb: 15400, co2: 15, cat: "Berkas" },
-  { id: "b2", from: "Unduhan", subject: "PDF materi kuliah (salinan ganda)", kb: 8400, co2: 10, cat: "Berkas" },
-  { id: "m1", from: "Grup chat", subject: "Video kiriman ulang dari tahun lalu", kb: 22000, co2: 25, cat: "Media chat" },
-  { id: "c1", from: "Cache aplikasi", subject: "Data sementara media sosial", kb: 31000, co2: 20, cat: "Cache" },
+function makeDemoGeo() {
+  const h0 = new Date().getHours();
+  const hours = Array.from({ length: 24 }, (_, i) => (h0 + i) % 24);
+  return {
+    cur: { temp: DEMO_WEATHER.data.temp, app: DEMO_WEATHER.data.temp + 1, hum: 64, wind: 9 },
+    aq: { aqi: 24, pm25: 8, pm10: 14, no2: 10 },
+    hourly: {
+      time: hours.map((h) => `2026-01-01T${pad2(h)}:00`),
+      rain: hours.map(() => 5),
+      temp: hours.map((h) => DEMO_WEATHER.data.temp + (h >= 11 && h <= 15 ? 3 : h >= 20 || h <= 5 ? -3 : 0)),
+      aqi: hours.map((h) => 20 + ((h >= 7 && h <= 9) || (h >= 17 && h <= 19) ? 18 : 0)),
+    },
+  };
+}
+
+function useGeoData(pos) {
+  const lat = pos ? pos.lat : DEFAULT_CENTER[0];
+  const lng = pos ? pos.lng : DEFAULT_CENTER[1];
+  const [g, setG] = useState({ status: "loading", data: null });
+  const [tick, setTick] = useState(0);
+  const retry = useCallback(() => setTick((t) => t + 1), []);
+  useEffect(() => {
+    if (DEMO_WEATHER) { setG({ status: "ready", data: makeDemoGeo() }); return; }
+    let off = false;
+    setG({ status: "loading", data: null });
+    const f = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m&hourly=temperature_2m,precipitation_probability&forecast_hours=24&timezone=auto`;
+    const a = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide&hourly=european_aqi&forecast_hours=24&timezone=auto`;
+    Promise.allSettled([fetch(f).then((r) => r.json()), fetch(a).then((r) => r.json())]).then(([rw, ra]) => {
+      if (off) return;
+      const w = rw.status === "fulfilled" ? rw.value : null;
+      if (!w?.current || typeof w.current.temperature_2m !== "number") { setG({ status: "error", data: null }); return; }
+      const q = ra.status === "fulfilled" ? ra.value : null;
+      setG({
+        status: "ready",
+        data: {
+          cur: { temp: w.current.temperature_2m, app: w.current.apparent_temperature, hum: w.current.relative_humidity_2m, wind: w.current.wind_speed_10m },
+          aq: q?.current ? { aqi: q.current.european_aqi, pm25: q.current.pm2_5, pm10: q.current.pm10, no2: q.current.nitrogen_dioxide } : null,
+          hourly: { time: w.hourly.time, rain: w.hourly.precipitation_probability, temp: w.hourly.temperature_2m, aqi: q?.hourly?.european_aqi || null },
+        },
+      });
+    });
+    return () => { off = true; };
+  }, [lat, lng, tick]);
+  return { ...g, retry };
+}
+
+const LEVEL = (s) => (s < 35 ? { t: "Rendah", cls: "bg-emerald-100 text-emerald-700", bar: "#16A34A" } : s < 65 ? { t: "Waspada", cls: "bg-amber-100 text-amber-700", bar: "#F59E0B" } : { t: "Tinggi", cls: "bg-rose-100 text-rose-700", bar: "#E11D48" });
+const AQI_CAT = (v) => (v == null ? { t: "Tidak tersedia", cls: "bg-slate-100 text-slate-500" } : v <= 40 ? { t: "Baik", cls: "bg-emerald-100 text-emerald-700" } : v <= 60 ? { t: "Sedang", cls: "bg-amber-100 text-amber-700" } : { t: "Tidak Sehat", cls: "bg-rose-100 text-rose-700" });
+
+function riskScores(d) {
+  const q = d.aq, rain = d.hourly.rain[0] ?? 0;
+  return [
+    { t: "Pernapasan (ISPA & asma)", d: "Dari PM₂.₅, PM₁₀, dan NO₂", icon: Wind, c: "#0EA5E9", s: q ? clamp(((q.pm25 ?? 0) / 55) * 50 + ((q.pm10 ?? 0) / 150) * 30 + ((q.no2 ?? 0) / 200) * 20) : null },
+    { t: "Heat stress & dehidrasi", d: "Dari suhu, suhu terasa, dan kelembapan", icon: Thermometer, c: "#F97316", s: clamp(((d.cur.app - 27) / 14) * 100 + (d.cur.hum > 70 ? 10 : 0)) },
+    { t: "Cuaca & kelembapan ekstrem", d: "Dari angin, peluang hujan, dan kelembapan", icon: CloudRain, c: "#8B5CF6", s: clamp((d.cur.wind / 60) * 40 + rain * 0.4 + (d.cur.hum > 85 ? 20 : 0)) },
+  ];
+}
+
+const COMMUTE = {
+  motor: { n: "Motor", e: 1, co2: 0.1, sp: 30 },
+  mobil: { n: "Mobil", e: 0.35, co2: 0.19, sp: 25 },
+  bus: { n: "Angkot/Bus", e: 0.6, co2: 0.05, sp: 20 },
+  sepeda: { n: "Sepeda/Jalan", e: 1, co2: 0, sp: 10 },
+};
+const MASK_F = [1, 0.6, 0.2];
+const MASK_N = ["Tanpa masker", "Masker kain", "Masker medis/N95"];
+const PRESETS = [
+  { n: "Dewasa Sehat", v: 1, set: { km: 12, out: 3 } },
+  { n: "Sensitif Polusi", v: 1.6, set: { km: 8, out: 2 } },
+  { n: "Mobilitas Tinggi", v: 1.2, set: { km: 40, out: 5 } },
 ];
 
-function loadGoogle() {
-  return new Promise((resolve, reject) => {
-    if (window.google?.accounts?.oauth2) return resolve();
-    const el = document.createElement("script");
-    el.src = "https://accounts.google.com/gsi/client";
-    el.async = true;
-    el.onload = resolve;
-    el.onerror = () => reject(new Error("Gagal memuat layanan Google. Periksa koneksi internet."));
-    document.head.appendChild(el);
-  });
+function goldenWindow(d) {
+  const T = d.hourly.time, rain = d.hourly.rain, tmp = d.hourly.temp, ai = d.hourly.aqi;
+  const N = Math.min(12, T.length - 2);
+  let best = null;
+  for (let i = 0; i < N; i++) {
+    let sc = 0;
+    for (let j = i; j < i + 2; j++) sc += (ai ? ai[j] ?? 0 : 0) + (rain[j] ?? 0) * 0.3 + Math.max(0, tmp[j] - 32) * 3;
+    if (!best || sc < best.sc) best = { sc, i };
+  }
+  if (!best) return null;
+  const i = best.i, h0 = Number(T[i].slice(11, 13));
+  const r = Math.round(((rain[i] ?? 0) + (rain[i + 1] ?? 0)) / 2);
+  return { label: `${pad2(h0)}:00–${pad2((h0 + 2) % 24)}:00`, detail: (ai ? `AQI rata-rata ${Math.round(((ai[i] ?? 0) + (ai[i + 1] ?? 0)) / 2)} · ` : "") + `peluang hujan ${r}%` };
 }
 
-async function gmail(token, path, opts = {}) {
-  const res = await fetch(`${GMAIL}${path}`, {
-    ...opts,
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-  });
-  if (!res.ok) throw new Error(res.status === 401 ? "Sesi berakhir. Hubungkan ulang Gmail." : `Gmail menolak permintaan (kode ${res.status}).`);
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
-}
+const GEO_SLIDERS = [
+  { k: "km", label: "Jarak tempuh harian", unit: "km/hari", max: 80, step: 1, icon: Car, c: "#0EA5E9" },
+  { k: "out", label: "Aktivitas luar ruang", unit: "jam/hari", max: 12, step: 0.5, icon: Sun, c: "#F59E0B" },
+  { k: "ac", label: "Penggunaan AC", unit: "jam/hari", max: 16, step: 0.5, icon: Snowflake, c: "#06B6D4" },
+  { k: "mask", label: "Proteksi masker", unit: "", max: 2, step: 1, icon: ShieldCheck, c: "#027A48" },
+];
 
-function DigitalHygieneBody({ freedKb, savedG, onSaved }) {
-  const [token, setToken] = useState(null);
-  const [account, setAccount] = useState("");
-  const [mails, setMails] = useState([]);
-  const [status, setStatus] = useState("idle"); // idle | loading | ready
-  const [error, setError] = useState("");
-  const [sel, setSel] = useState(new Set());
-  const [cleaning, setCleaning] = useState(false);
-  const [done, setDone] = useState(null);
-  const [filter, setFilter] = useState("Semua");
-  const [progress, setProgress] = useState(0);
+function GeoHealth({ pos }) {
+  const { status, data, retry } = useGeoData(pos);
+  const [S, setS] = useState({ preset: 0, mode: "motor", km: 12, out: 3, ac: 5, mask: 1 });
+  const place = DEMO_WEATHER ? DEMO_WEATHER.place : pos ? "lokasimu" : "Tarutung";
 
-  const totalKb = mails.reduce((a, m) => a + m.kb, 0);
-  const selKb = mails.filter((m) => sel.has(m.id)).reduce((a, m) => a + m.kb, 0);
-  const pct = totalKb ? (selKb / totalKb) * 100 : 0;
-  const animFreed = useAnimatedNumber(freedKb);
-  const animG = useAnimatedNumber(savedG);
-  const R = 52, C = 2 * Math.PI * R;
-  const cats = ["Semua", ...new Set(mails.map((m) => m.cat))];
-  const f = cats.includes(filter) ? filter : "Semua";
-  const shown = f === "Semua" ? mails : mails.filter((m) => m.cat === f);
-  const EMAIL_CATS = ["Email", "Promosi", "Sosial"];
-  const noun = mails.length > 0 && mails.every((m) => EMAIL_CATS.includes(m.cat)) ? "email" : "item";
-  const allSelected = shown.length > 0 && shown.every((m) => sel.has(m.id));
+  const sim = useMemo(() => {
+    if (!data) return null;
+    const m = COMMUTE[S.mode];
+    const pm = data.aq ? data.aq.pm25 : null;
+    const exposed = (S.km / m.sp) * m.e + S.out;
+    return {
+      pm: pm == null ? null : Math.round(pm * exposed * MASK_F[S.mask] * PRESETS[S.preset].v),
+      co2: (S.km * m.co2 + S.ac * 0.87).toFixed(1),
+      win: goldenWindow(data),
+    };
+  }, [data, S]);
 
-  const loadSample = () => {
-    setToken("sample"); setAccount("Pemrosesan Lokal"); setMails(SAMPLE); setSel(new Set()); setStatus("ready");
-  };
+  if (status === "loading") return <Card className="!p-4"><p className="text-xs font-medium text-slate-500">Memuat radar kesehatan…</p></Card>;
+  if (status === "error") return (
+    <Card className="!p-4">
+      <p className="text-sm font-semibold text-slate-600">Data udara dan cuaca belum bisa dimuat. Periksa koneksi internet, lalu coba lagi.</p>
+      <button onClick={retry} className="mt-3 rounded-full bg-[#027A48] px-4 py-2 text-xs font-extrabold text-white">Coba lagi</button>
+    </Card>
+  );
 
-  const load = async (tk) => {
-    if (tk === "sample") return loadSample();
-    setStatus("loading"); setError("");
-    try {
-      const q = encodeURIComponent("(category:promotions OR category:social) older_than:30d");
-      const [profile, list] = await Promise.all([gmail(tk, "/profile"), gmail(tk, `/messages?maxResults=25&q=${q}`)]);
-      setAccount(profile.emailAddress);
-      const detail = await Promise.all(
-        (list.messages || []).map((m) => gmail(tk, `/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject`))
-      );
-      setMails(detail.map((d) => {
-        const h = (n) => d.payload?.headers?.find((x) => x.name === n)?.value || "";
-        const from = h("From").replace(/<.*>/, "").replace(/"/g, "").trim();
-        return {
-          id: d.id,
-          from: from || h("From") || "(tanpa nama)",
-          subject: h("Subject") || "(tanpa subjek)",
-          kb: Math.max(1, Math.round((d.sizeEstimate || 0) / 1024)),
-          co2: CO2_PER_EMAIL_G,
-          cat: d.labelIds?.includes("CATEGORY_SOCIAL") ? "Sosial" : "Promosi",
-        };
-      }));
-      setSel(new Set());
-      setStatus("ready");
-    } catch (e) { setError(e.message); setStatus("idle"); setToken(null); }
-  };
-
-  const connect = async () => {
-    setError("");
-    if (!CLIENT_ID) return loadSample(); // tanpa Client ID: jalan dengan data contoh
-    try {
-      await loadGoogle();
-      window.google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: "https://www.googleapis.com/auth/gmail.modify",
-        callback: (r) => {
-          if (r.error) { setError("Izin akses Gmail tidak diberikan."); return; }
-          setToken(r.access_token); load(r.access_token);
-        },
-      }).requestAccessToken();
-    } catch (e) { setError(e.message); }
-  };
-
-  const disconnect = () => {
-    try { window.google?.accounts?.oauth2?.revoke(token, () => {}); } catch (e) { /* abaikan */ }
-    setToken(null); setAccount(""); setMails([]); setSel(new Set()); setStatus("idle");
-  };
-
-  const toggle = (id) => {
-    if (cleaning) return;
-    setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  };
-
-  const clean = async () => {
-    if (!sel.size || cleaning) return;
-    setCleaning(true); setProgress(8); setError("");
-    const iv = setInterval(() => setProgress((p) => Math.min(p + 6, 90)), 120);
-    try {
-      if (token === "sample") await new Promise((r) => setTimeout(r, 900));
-      else await gmail(token, "/messages/batchModify", {
-        method: "POST",
-        body: JSON.stringify({ ids: [...sel], addLabelIds: ["TRASH"], removeLabelIds: ["INBOX"] }),
-      });
-      clearInterval(iv); setProgress(100);
-      await new Promise((r) => setTimeout(r, 350));
-      const gone = mails.filter((m) => sel.has(m.id));
-      const g = gone.reduce((a, m) => a + m.co2, 0);
-      onSaved(g, gone.reduce((a, m) => a + m.kb, 0), gone.length);
-      setDone({ n: gone.length, kb: gone.reduce((a, m) => a + m.kb, 0), g });
-      setMails((ms) => ms.filter((m) => !sel.has(m.id)));
-      setSel(new Set());
-    } catch (e) { clearInterval(iv); setError(e.message); }
-    setCleaning(false);
-  };
-
-  if (status !== "ready") {
-    return (
-      <Card className="flex flex-col items-center py-10 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50"><Mail size={30} color={EMERALD} /></div>
-        <h2 className="mt-4 text-xl font-extrabold text-slate-900">Bersihkan jejak digitalmu</h2>
-        <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
-          {CLIENT_ID ? "MyWORLD hanya membaca pengirim, subjek, dan ukuran email promosi dan sosial yang berusia lebih dari 30 hari. Isi pesanmu tidak dibaca dan tidak dikirim ke server mana pun." : "Email lama, foto ganda, unduhan terlupakan, sampai cache aplikasi: semuanya ikut menyedot energi, di perangkat maupun di server. Yuk, rapikan."}
-        </p>
-        <button onClick={connect} disabled={status === "loading"}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-full py-4 text-base font-extrabold text-white shadow-[0_8px_20px_rgba(2,122,72,0.25)] transition-all active:scale-[0.98] disabled:opacity-50"
-          style={{ background: EMERALD }}>
-          <Mail size={18} /> {status === "loading" ? "Memindai…" : CLIENT_ID ? "Hubungkan Gmail" : "Mulai pindai"}
-        </button>
-        {error && <p className="mt-3 text-sm font-semibold text-red-600">{error}</p>}
-        <p className="mt-4 text-[11px] leading-relaxed text-slate-400">{CLIENT_ID ? "Email yang dibersihkan dipindahkan ke Sampah dan bisa dipulihkan selama 30 hari." : "Pemrosesan lokal: semua dihitung di perangkatmu, dan tidak ada berkas yang diubah atau dihapus."}</p>
-      </Card>
-    );
-  }
-
-  if (done) {
-    const mb = done.kb >= 1000 ? `${(done.kb / 1024).toFixed(1)} MB` : `${done.kb} KB`;
-    return (
-      <Card className="flex flex-col items-center py-10 text-center" role="status">
-        <PopIn className="flex h-20 w-20 items-center justify-center rounded-full" style={{ background: EMERALD }}>
-          <Check size={40} color="#fff" strokeWidth={3} />
-        </PopIn>
-        <h2 className="mt-5 text-xl font-extrabold text-slate-900">Beres. Ruang digitalmu lebih lega.</h2>
-        <p className="mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
-          {done.n} item ({mb}) sudah dibersihkan, setara ±{Math.round(done.g)} g CO₂e yang tak lagi dibebankan ke server. Langkah kecil yang rutin dilakukan akan terasa dampaknya.
-        </p>
-        <p className="mt-3 max-w-xs text-xs text-slate-500">{token === "sample" ? "Pemrosesan lokal: tidak ada berkas di perangkatmu yang diubah atau dihapus." : "Email ada di Sampah Gmail dan bisa dipulihkan selama 30 hari."}</p>
-        <button onClick={() => setDone(null)} className="mt-6 w-full rounded-full py-4 text-base font-extrabold text-white transition-transform active:scale-[0.98]" style={{ background: EMERALD }}>
-          {mails.length ? "Lanjut merapikan" : "Selesai"}
-        </button>
-      </Card>
-    );
-  }
-
+  const risks = riskScores(data);
+  const cat = AQI_CAT(data.aq ? data.aq.aqi : null);
   return (
     <div className="space-y-4">
-      <Card>
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <p className="min-w-0 truncate text-xs font-semibold text-slate-500">Sumber: <span className="text-slate-800">{account}</span></p>
-          <button onClick={disconnect} className="shrink-0 text-xs font-bold text-slate-400">Putuskan</button>
+      <Card className="bg-gradient-to-br from-emerald-50 via-white to-sky-50">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold text-slate-500">Radar kesehatan lingkungan</p>
+            <h2 className="text-xl font-extrabold text-slate-900">Kondisi di {place}</h2>
+          </div>
+          <span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold ${cat.cls}`}>Udara {cat.t}</span>
         </div>
-        <div className="flex items-center gap-5">
-          <div className="relative h-32 w-32 shrink-0">
-            <svg viewBox="0 0 120 120" className="h-full w-full -rotate-90">
-              <circle cx="60" cy="60" r={R} fill="none" stroke="#EEF0F2" strokeWidth="10" />
-              <circle cx="60" cy="60" r={R} fill="none" stroke={EMERALD} strokeWidth="10" strokeLinecap="round"
-                strokeDasharray={C} strokeDashoffset={C - (C * pct) / 100}
-                style={{ transition: "stroke-dashoffset 600ms cubic-bezier(.22,1,.36,1)" }} />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-extrabold text-slate-900">{(totalKb / 1024).toFixed(1)}</span>
-              <span className="text-xs font-medium text-slate-500">{noun === "email" ? "MB email lama" : "MB sampah digital"}</span>
-            </div>
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-extrabold text-slate-900">Sampah digital</h2>
-            <p className="mt-1 text-sm leading-relaxed text-slate-500">Centang {noun} yang sudah tidak kamu perlukan.</p>
-            <div className="mt-3 text-sm font-semibold" style={{ color: EMERALD }}>{sel.size} dipilih · {(selKb / 1024).toFixed(2)} MB</div>
-          </div>
-        </div>
-        {cleaning && (
-          <div className="mt-4">
-            <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-              <div className="h-full rounded-full" style={{ width: `${progress}%`, background: EMERALD, transition: "width 120ms linear" }} />
-            </div>
-            <p className="mt-2 text-xs font-medium text-slate-500">Membersihkan… {progress}%</p>
-          </div>
+        {data.aq && (
+          <p className="mt-2 text-xs font-medium text-slate-500">
+            AQI {Math.round(data.aq.aqi ?? 0)} · PM₂.₅ {Math.round((data.aq.pm25 ?? 0) * 10) / 10} µg/m³ · PM₁₀ {Math.round((data.aq.pm10 ?? 0) * 10) / 10} µg/m³ · NO₂ {Math.round((data.aq.no2 ?? 0) * 10) / 10} µg/m³
+          </p>
         )}
-        {error && <p className="mt-3 text-sm font-semibold text-red-600">{error}</p>}
+        <div className="mt-4 space-y-3">
+          {risks.map(({ t, d, icon: Icon, c, s }) => {
+            const lv = s == null ? null : LEVEL(s);
+            return (
+              <div key={t} className="rounded-[1.5rem] bg-white/80 p-3.5">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: c + "26" }}><Icon size={18} color={c} /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-extrabold text-slate-900">{t}</p>
+                    <p className="text-[11px] text-slate-500">{d}</p>
+                  </div>
+                  {lv ? (
+                    <div className="text-right">
+                      <p className="text-xl font-extrabold leading-none text-slate-900">{Math.round(s)}</p>
+                      <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${lv.cls}`}>{lv.t}</span>
+                    </div>
+                  ) : <span className="text-xs font-semibold text-slate-400">Data belum tersedia</span>}
+                </div>
+                {lv && (
+                  <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full" style={{ width: `${Math.round(s)}%`, background: lv.bar, transition: "width 600ms cubic-bezier(.22,1,.36,1)" }} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-[11px] text-slate-400">Skor 0–100 bersifat indikatif untuk edukasi, bukan diagnosis medis.</p>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="!p-4">
-          <p className="text-xs font-semibold text-slate-500">Ruang dibebaskan</p>
-          <p className="mt-1 text-xl font-extrabold text-slate-900">{(animFreed / 1024).toFixed(2)} <span className="text-sm font-semibold text-slate-400">MB</span></p>
-        </Card>
-        <Card className="!p-4">
-          <p className="text-xs font-semibold text-slate-500">Emisi yang dihindari (estimasi)</p>
-          <p className="mt-1 text-xl font-extrabold" style={{ color: EMERALD }}>{animG.toFixed(0)} <span className="text-sm font-semibold text-slate-400">g CO₂e</span></p>
-        </Card>
-      </div>
-
-      <Card className="!p-2">
-        <div className="flex items-center justify-between px-3 pb-1 pt-2">
-          <h3 className="text-sm font-extrabold text-slate-900">Daftar sampah digital ({shown.length})</h3>
-          <button onClick={() => setSel(allSelected ? new Set() : new Set(shown.map((m) => m.id)))}
-            className="rounded-full px-3 py-1 text-xs font-bold hover:bg-emerald-50" style={{ color: EMERALD }}>
-            {allSelected ? "Batal pilih" : "Pilih semua"}
-          </button>
+      <Card className="bg-gradient-to-br from-violet-50 via-white to-sky-50">
+        <h3 className="text-sm font-extrabold text-slate-900">Simulator perjalanan sehat</h3>
+        <p className="mt-0.5 text-xs text-slate-500">Perkirakan paparan polusi dari cara kamu bepergian.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {PRESETS.map((p, i) => {
+            const on = S.preset === i;
+            return (
+              <button key={p.n} aria-pressed={on} onClick={() => setS((x) => ({ ...x, preset: i, ...p.set }))}
+                className={`rounded-full px-3.5 py-2 text-xs font-bold transition-colors ${on ? "text-white" : "border border-slate-200 bg-white text-slate-600"}`}
+                style={on ? { background: EMERALD } : undefined}>{p.n}</button>
+            );
+          })}
         </div>
-        <div className="flex gap-2 overflow-x-auto px-3 pb-2 pt-1">
-          {cats.map((c) => (
-            <button key={c} onClick={() => { setFilter(c); setSel(new Set()); }}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${f === c ? "text-white" : "bg-slate-100 text-slate-600"}`}
-              style={f === c ? { background: EMERALD } : undefined}>{c}</button>
+        <div className="mt-3 grid grid-cols-4 gap-1 rounded-full bg-slate-100 p-1">
+          {Object.entries(COMMUTE).map(([k, m]) => (
+            <button key={k} onClick={() => setS((x) => ({ ...x, mode: k }))}
+              className={`rounded-full px-1 py-2 text-[11px] font-bold transition-all ${S.mode === k ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>{m.n}</button>
           ))}
         </div>
-        {mails.length === 0 ? (
-          <div className="flex flex-col items-center px-6 py-10 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50"><ShieldCheck size={26} color={EMERALD} /></div>
-            <p className="mt-3 text-base font-extrabold text-slate-900">Sudah bersih semua</p>
-            <p className="mt-1 text-sm text-slate-500">Tidak ada lagi yang perlu dirapikan. Server pun ikut lega.</p>
-            <button onClick={() => load(token)} className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700">
-              <RotateCcw size={15} /> Pindai lagi
-            </button>
-          </div>
-        ) : (
-          <ul>
-            {shown.map((m) => {
-              const on = sel.has(m.id);
-              return (
-                <li key={m.id}>
-                  <button onClick={() => toggle(m.id)}
-                    className={`flex w-full items-center gap-3 rounded-full px-3 py-3 text-left transition-colors ${on ? "bg-emerald-50/70" : "hover:bg-slate-50"}`}>
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all"
-                      style={{ borderColor: on ? EMERALD : "#D0D5DD", background: on ? EMERALD : "#fff" }}>
-                      {on && <Check size={14} color="#fff" strokeWidth={3} />}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-bold text-slate-900">{m.from}</span>
-                      <span className="block truncate text-xs text-slate-500">{m.subject}</span>
-                    </span>
-                    <span className="shrink-0 text-right">
-                      <span className="block text-xs font-bold text-slate-700">{m.kb >= 1000 ? (m.kb / 1024).toFixed(1) + " MB" : m.kb + " KB"}</span>
-                      <span className="block text-[11px] text-slate-400">{m.cat}</span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <div className="mt-4 space-y-4">
+          {GEO_SLIDERS.map(({ k, label, unit, max, step, icon: Icon, c }) => (
+            <div key={k}>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full" style={{ background: c + "26" }}><Icon size={16} color={c} /></span>
+                  {label}
+                </span>
+                <span className="text-sm font-extrabold text-slate-900">{k === "mask" ? MASK_N[S.mask] : <>{S[k]} <span className="text-xs font-medium text-slate-400">{unit}</span></>}</span>
+              </div>
+              <input type="range" min="0" max={max} step={step} value={S[k]} aria-label={label}
+                onChange={(e) => setS((x) => ({ ...x, [k]: Number(e.target.value) }))}
+                className="h-2 w-full cursor-pointer" style={{ accentColor: c }} />
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <Card className="!p-4 !bg-sky-50">
+            <p className="text-xs font-semibold text-slate-500">PM₂.₅ terhirup / hari</p>
+            <p className="mt-1 text-xl font-extrabold text-slate-900">{sim.pm == null ? "–" : sim.pm} <span className="text-sm font-semibold text-slate-400">µg</span></p>
+          </Card>
+          <Card className="!p-4 !bg-emerald-50">
+            <p className="text-xs font-semibold text-slate-500">Emisi perjalanan & AC</p>
+            <p className="mt-1 text-xl font-extrabold" style={{ color: EMERALD }}>{sim.co2} <span className="text-sm font-semibold text-slate-400">kg CO₂</span></p>
+          </Card>
+          <Card className="col-span-2 !p-4 !bg-amber-50">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Clock size={14} color="#D97706" /> Jam berangkat terbaik (12 jam ke depan)</p>
+            <p className="mt-1 text-xl font-extrabold text-slate-900">{sim.win ? sim.win.label : "Data belum tersedia"}</p>
+            {sim.win && <p className="text-xs font-medium text-slate-500">{sim.win.detail}</p>}
+          </Card>
+        </div>
+        <p className="mt-3 text-[11px] text-slate-400">Estimasi edukatif: paparan dihitung dari PM₂.₅ saat ini, durasi, moda, dan masker.</p>
       </Card>
-
-      {mails.length > 0 && (
-        <>
-          <button onClick={clean} disabled={!sel.size || cleaning}
-            className="flex w-full items-center justify-center gap-2 rounded-full py-4 text-base font-extrabold text-white shadow-[0_8px_20px_rgba(2,122,72,0.25)] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-            style={{ background: EMERALD }}>
-            <Trash2 size={18} /> {cleaning ? "Membersihkan…" : `Bersihkan ${sel.size || ""} ${noun}`}
-          </button>
-          <p className="text-center text-[11px] text-slate-400">{token === "sample" ? "Pemrosesan lokal: semua dihitung di perangkatmu, dan tidak ada berkas yang diubah atau dihapus." : "Email dipindahkan ke Sampah Gmail dan bisa dipulihkan selama 30 hari."}</p>
-        </>
-      )}
-    </div>
-  );
-}
-
-function CarbonBanner() {
-  return (
-    <section className="rounded-[2rem] p-5 text-white shadow-[0_12px_40px_rgba(2,122,72,0.22)]" style={{ background: EMERALD }}>
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold">
-        <Info size={12} /> Tahukah kamu?
-      </span>
-      <p className="mt-3 text-sm font-medium leading-relaxed text-emerald-50">
-        Setiap email yang kamu simpan, foto ganda, dan berkas lama tersimpan di server fisik yang menyala dan didinginkan 24 jam nonstop. Makin menumpuk, makin besar listrik dan emisi karbon yang dibutuhkan. Membersihkan yang tak perlu adalah cara kecil untuk ikut merawat bumi.
-      </p>
-    </section>
-  );
-}
-
-function DigitalHygiene(props) {
-  return (
-    <div className="space-y-4">
-      <CarbonBanner />
-      <DigitalHygieneBody {...props} />
     </div>
   );
 }
@@ -458,11 +366,11 @@ function Simulator() {
 
   const status = health > 0.75 ? "Taman subur" : health > 0.5 ? "Cukup lestari" : health > 0.3 ? "Mulai layu" : "Perlu dipulihkan";
   const sliders = [
-    { label: "Jarak tempuh", unit: "km/hari", v: km, set: setKm, max: 60, icon: Car },
-    { label: "Pendingin ruangan", unit: "jam/hari", v: ac, set: setAc, max: 12, icon: Snowflake },
-    { label: "Porsi daging", unit: "porsi/hari", v: meat, set: setMeat, max: 4, icon: Beef },
-    { label: "Streaming video", unit: "jam/hari", v: stream, set: setStream, max: 10, icon: Tv },
-    { label: "Plastik sekali pakai", unit: "item/hari", v: plastic, set: setPlastic, max: 10, icon: ShoppingBag },
+    { label: "Jarak tempuh", unit: "km/hari", v: km, set: setKm, max: 60, icon: Car, c: "#0EA5E9" },
+    { label: "Pendingin ruangan", unit: "jam/hari", v: ac, set: setAc, max: 12, icon: Snowflake, c: "#06B6D4" },
+    { label: "Porsi daging", unit: "porsi/hari", v: meat, set: setMeat, max: 4, icon: Beef, c: "#F43F5E" },
+    { label: "Streaming video", unit: "jam/hari", v: stream, set: setStream, max: 10, icon: Tv, c: "#8B5CF6" },
+    { label: "Plastik sekali pakai", unit: "item/hari", v: plastic, set: setPlastic, max: 10, icon: ShoppingBag, c: "#F59E0B" },
   ];
 
   return (
@@ -485,7 +393,7 @@ function Simulator() {
         </div>
       </Card>
 
-      <Card>
+      <Card className="bg-gradient-to-br from-violet-50 via-white to-sky-50">
         <h3 className="mb-3 text-sm font-extrabold text-slate-900">Kebiasaan harianmu</h3>
         <div className="mb-4 grid grid-cols-4 gap-1 rounded-full bg-slate-100 p-1">
           {MODES.map((m) => (
@@ -496,39 +404,39 @@ function Simulator() {
           ))}
         </div>
         <div className="space-y-5">
-          {sliders.map(({ label, unit, v, set, max, icon: Icon }) => (
+          {sliders.map(({ label, unit, v, set, max, icon: Icon, c }) => (
             <div key={label}>
               <div className="mb-2 flex items-center justify-between">
                 <span className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50"><Icon size={16} color={EMERALD} /></span>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full" style={{ background: c + "26" }}><Icon size={16} color={c} /></span>
                   {label}
                 </span>
                 <span className="text-sm font-extrabold text-slate-900">{v} <span className="text-xs font-medium text-slate-400">{unit}</span></span>
               </div>
               <input type="range" min="0" max={max} value={v} onChange={(e) => set(+e.target.value)}
-                className="h-2 w-full cursor-pointer" style={{ accentColor: EMERALD }} aria-label={label} />
+                className="h-2 w-full cursor-pointer" style={{ accentColor: c }} aria-label={label} />
             </div>
           ))}
         </div>
       </Card>
 
-      <Card>
+      <Card className="bg-gradient-to-br from-amber-50 via-white to-rose-50">
         <h3 className="mb-3 text-sm font-extrabold text-slate-900">Dari mana emisimu berasal</h3>
         <div className="space-y-3">
-          {items.map((i) => (
+          {items.map((i, idx) => (
             <div key={i.k}>
               <div className="mb-1 flex justify-between text-xs">
                 <span className="font-semibold text-slate-600">{i.k}</span>
                 <span className="font-bold text-slate-900">{i.v.toFixed(2)} kg/hari</span>
               </div>
               <div className="h-2 rounded-full bg-slate-100">
-                <div className="h-full rounded-full" style={{ width: `${(i.v / maxV) * 100}%`, background: EMERALD, transition: "width 500ms cubic-bezier(.22,1,.36,1)" }} />
+                <div className="h-full rounded-full" style={{ width: `${(i.v / maxV) * 100}%`, background: ["#0EA5E9", "#06B6D4", "#F43F5E", "#8B5CF6", "#F59E0B"][idx], transition: "width 500ms cubic-bezier(.22,1,.36,1)" }} />
               </div>
             </div>
           ))}
         </div>
         <p className="mt-4 text-xs leading-relaxed text-slate-400">
-          Angka bersifat estimasi edukatif dengan faktor emisi rata-rata. Bumi dan isinya milik Tuhan (Mzm. 24:1); kita hanya dipercaya merawatnya, dimulai dari kebiasaan kecil yang berulang setiap hari.
+          Angka bersifat estimasi edukatif dengan faktor emisi rata-rata. Perubahan besar dimulai dari kebiasaan kecil yang diulang setiap hari.
         </p>
       </Card>
     </div>
@@ -536,60 +444,32 @@ function Simulator() {
 }
 
 /* ---------- TAB 3: ECO MISSIONS ---------- */
-// Tempel teks Alkitab Terjemahan Baru (TB) persis seperti aslinya pada tiap ayat di bawah ini.
-// Selama masih kosong, aplikasi hanya menampilkan rujukan ayatnya.
-const AYAT_TB = {
-  "Mazmur 24:1": "TUHANlah yang empunya bumi serta segala isinya, dan dunia serta yang diam di dalamnya.",
-  "Kejadian 2:15": "",
-  "Amsal 12:10": "",
-  "Roma 8:19-21": "",
-  "Lukas 16:10": "",
-  "Yohanes 6:12": "",
-  "Lukas 12:15": "",
-  "Mazmur 19:2": "",
-  "Imamat 25:23": "",
-  "Ulangan 20:19": "",
-  "Ayub 12:7-10": "",
-  "Yesaya 24:4-5": "",
-  "Matius 6:26": "",
-  "Kolose 1:15-20": "",
-  "Wahyu 11:18": "",
-};
-
-const VERSES = [
-  { ref: "Mazmur 24:1", r: "Kita adalah penjaga, bukan pemilik, atas segala yang dipercayakan kepada kita." },
-  { ref: "Kejadian 2:15", r: "Merawat bumi bukan tambahan, melainkan bagian dari panggilan sejak semula." },
-  { ref: "Amsal 12:10", r: "Kepedulian kepada makhluk lain mencerminkan hati yang benar." },
-  { ref: "Roma 8:19-21", r: "Pemulihan ciptaan adalah harapan bersama yang kita kerjakan lewat pilihan sehari-hari." },
-  { ref: "Imamat 25:23", r: "Tanah tidak sepenuhnya milik kita. Kita hanyalah penumpang dan penggarap, jadi rawatlah agar layak diwariskan." },
-  { ref: "Ulangan 20:19", r: "Bahkan di tengah perang, pohon buah dilindungi. Apalagi di masa damai, pohon layak kita jaga." },
-  { ref: "Ayub 12:7-10", r: "Hewan, burung, dan bumi sendiri menjadi guru yang bersaksi tentang tangan Tuhan. Mari belajar mendengarkan mereka." },
-  { ref: "Yesaya 24:4-5", r: "Ketika manusia merusak bumi, bumi pun berduka. Kerusakan alam adalah soal iman dan tanggung jawab, bukan sekadar teknis." },
-  { ref: "Matius 6:26", r: "Tuhan memelihara burung-burung di udara. Jika Ia peduli pada mereka, kita pun terpanggil ikut menjaga rumah mereka." },
-  { ref: "Kolose 1:15-20", r: "Kristus mendamaikan segala sesuatu, termasuk seluruh ciptaan. Karya penebusan-Nya mencakup bumi dan isinya." },
-  { ref: "Yohanes 6:12", r: "Yesus meminta sisa makanan dikumpulkan agar tidak ada yang terbuang. Menghabiskan makanan adalah bentuk syukur." },
-  { ref: "Lukas 12:15", r: "Hidup bukan ditentukan oleh banyaknya harta. Hidup sederhana dan tidak berlebihan menolong bumi bernapas lega." },
-  { ref: "Lukas 16:10", r: "Setia dalam perkara kecil seperti membuang sampah pada tempatnya adalah latihan setia dalam perkara besar." },
-  { ref: "Wahyu 11:18", r: "Tuhan akan membinasakan mereka yang membinasakan bumi. Merusak ciptaan adalah hal serius di hadapan-Nya." },
+const TIPS = [
+  "Tas belanja yang dipakai berulang bisa menggantikan banyak kantong plastik sekali pakai.",
+  "Perangkat yang dicolok tapi tidak dipakai tetap menarik listrik siaga, jadi mencabutnya ikut menghemat energi.",
+  "Makanan yang terbuang ikut menyia-nyiakan air, energi, dan lahan yang dipakai untuk memproduksinya.",
+  "Kualitas udara bisa sangat berbeda antarjam, jadi menunda aktivitas ke jam yang lebih bersih mengurangi paparan polusi.",
+  "Berjalan kaki atau naik angkutan umum untuk jarak dekat mengurangi emisi kendaraan pribadi.",
+  "Menanam dan merawat tanaman membantu menyejukkan lingkungan sekitar dan menyerap sebagian karbon.",
 ];
-
+const MISSION_COLORS = { 1: "#0EA5E9", 2: "#F59E0B", 3: "#F97316", 4: "#14B8A6", 5: "#22C55E", 6: "#8B5CF6" };
 
 const MISSIONS = [
   { id: 1, t: "Bawa tumbler dan tas belanja sendiri", d: "Kurangi plastik sekali pakai hari ini", p: 15, icon: ShoppingBag },
   { id: 2, t: "Matikan lampu dan perangkat yang tak terpakai", d: "Hemat listrik di rumah dan kampus", p: 10, icon: Sparkles },
-  { id: 3, t: "Habiskan makananmu, tanpa sisa", d: "Syukuri berkat dengan tidak membuang pangan", p: 15, icon: Leaf },
-  { id: 4, t: "Bersihkan 20 email atau berkas yang tak perlu", d: "Tercentang otomatis begitu 20 item selesai dibersihkan di tab Beranda", p: 20, icon: Mail },
+  { id: 3, t: "Habiskan makananmu, tanpa sisa", d: "Hargai makanan dengan tidak membuangnya", p: 15, icon: Leaf },
+  { id: 4, t: "Pilih rute atau jam dengan polusi rendah", d: "Lihat jam berangkat terbaik di tab Beranda", p: 20, icon: Clock },
   { id: 5, t: "Tanam atau siram satu tanaman", d: "Rawat satu tanaman, sekecil apa pun", p: 25, icon: Sprout },
   { id: 6, t: "Berjalan kaki atau naik angkutan umum", d: "Satu perjalanan tanpa kendaraan pribadi", p: 15, icon: Bike },
 ];
 
 /* ---------- TAB 4: PETA EKOLOGI (React Leaflet + OpenStreetMap) ---------- */
 const GEO_CATS = [
-  { key: "all", label: "Semua", icon: Layers },
-  { key: "udara", label: "Udara", icon: Wind },
-  { key: "air", label: "Air", icon: Waves },
-  { key: "hutan", label: "Hutan", icon: TreePine },
-  { key: "limbah", label: "Limbah", icon: Trash2 },
+  { key: "all", label: "Semua", icon: Layers, color: "#027A48" },
+  { key: "udara", label: "Udara", icon: Wind, color: "#0EA5E9" },
+  { key: "air", label: "Air", icon: Waves, color: "#2563EB" },
+  { key: "hutan", label: "Hutan", icon: TreePine, color: "#16A34A" },
+  { key: "limbah", label: "Limbah", icon: Trash2, color: "#D97706" },
 ];
 const STATUS_COLOR = { Kritis: "#D92D20", Waspada: "#F79009", Aman: EMERALD };
 const GEO_POINTS = [
@@ -694,13 +574,13 @@ function EcoMap({ active, userPos }) {
   return (
     <div className="space-y-4">
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-        {GEO_CATS.map(({ key, label, icon: Icon }) => {
+        {GEO_CATS.map(({ key, label, icon: Icon, color }) => {
           const on = cat === key;
           return (
             <button key={key} onClick={() => setCat(key)} aria-pressed={on}
               className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-xs font-bold shadow-[0_4px_14px_rgba(16,24,40,0.06)] transition-colors ${on ? "text-white" : "bg-white text-slate-600"}`}
-              style={on ? { background: EMERALD } : undefined}>
-              <Icon size={14} /> {label}
+              style={on ? { background: color } : undefined}>
+              <Icon size={14} color={on ? "#fff" : color} /> {label}
               <span className={`rounded-full px-1.5 text-[10px] ${on ? "bg-white/20" : "bg-slate-100 text-slate-500"}`}>{count(key)}</span>
             </button>
           );
@@ -768,13 +648,6 @@ const LEVELS = [
 ];
 const IMPACT_G = { 1: 30, 2: 90, 3: 150, 4: 0, 5: 60, 6: 200 }; // estimasi edukatif g CO2e per misi
 const DAYS_KEY = "myworld_days_v1";
-const HYG_KEY = "myworld_hygiene_v1";
-function loadHyg() {
-  try {
-    const v = JSON.parse(localStorage.getItem(HYG_KEY));
-    return { g: v?.g || 0, kb: v?.kb || 0, daily: v?.daily || {} };
-  } catch (e) { return { g: 0, kb: 0, daily: {} }; }
-}
 const dayKey = (d = new Date()) => d.toLocaleDateString("sv-SE");
 
 // Jam hidup: hari berganti otomatis (tengah malam, saat tab dibuka lagi, saat fokus kembali)
@@ -818,11 +691,17 @@ function stats(days) {
 
 /* ---------- CUACA (Open-Meteo, tanpa API key) ---------- */
 // Cuaca dan kualitas udara berasal dari model Open-Meteo, bukan sensor resmi.
+// Tampilan tetap untuk demo/tangkapan layar. Ubah menjadi null agar kartu memakai data cuaca langsung.
+const DEMO_WEATHER = null;
+
 function useWeather(pos) {
   const lat = pos ? pos.lat : DEFAULT_CENTER[0];
   const lng = pos ? pos.lng : DEFAULT_CENTER[1];
   const [w, setW] = useState({ status: "loading", data: null });
+  const [tick, setTick] = useState(0);
+  const retry = useCallback(() => setTick((t) => t + 1), []);
   useEffect(() => {
+    if (DEMO_WEATHER) { setW({ status: "ready", data: DEMO_WEATHER.data }); return; }
     let off = false;
     setW({ status: "loading", data: null });
     const wx = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,weather_code,uv_index&timezone=auto`;
@@ -835,8 +714,8 @@ function useWeather(pos) {
       setW({ status: "ready", data: { temp: c.temperature_2m, rain: c.precipitation || 0, code: c.weather_code, uv: c.uv_index, aqi: typeof aqi === "number" ? aqi : null } });
     });
     return () => { off = true; };
-  }, [lat, lng]);
-  return w;
+  }, [lat, lng, tick]);
+  return { ...w, retry };
 }
 
 /* ---------- NAMA TEMPAT (Nominatim / OpenStreetMap), di-cache agar hemat permintaan ---------- */
@@ -849,6 +728,7 @@ function usePlaceName(pos) {
   const lat = pos ? pos.lat : null;
   const lng = pos ? pos.lng : null;
   useEffect(() => {
+    if (DEMO_WEATHER) { setName(DEMO_WEATHER.place); return; }
     if (lat === null || lng === null) { setName(null); return; }
     const key = `${lat.toFixed(3)},${lng.toFixed(3)}`; // ketelitian ±110 m
     const cached = readPlaceCache()[key];
@@ -903,16 +783,21 @@ function weatherAdvice(d, place) {
 }
 
 function WeatherCard({ pos, onNavigate }) {
-  const { status, data } = useWeather(pos);
+  const { status, data, retry } = useWeather(pos);
   const placeName = usePlaceName(pos);
   if (status === "loading") return <Card className="!p-4"><p className="text-xs font-medium text-slate-500">Memuat cuaca…</p></Card>;
-  if (status === "error") return <Card className="!p-4"><p className="text-xs font-medium text-slate-500">Cuaca belum bisa dimuat. Periksa koneksi internet, lalu buka ulang aplikasi ini.</p></Card>;
+  if (status === "error") return (
+    <Card className="!p-4">
+      <p className="text-sm font-semibold text-slate-600">Cuaca belum bisa dimuat. Periksa koneksi internet, lalu coba lagi.</p>
+      <button onClick={retry} className="mt-3 rounded-full bg-[#027A48] px-4 py-2 text-xs font-extrabold text-white">Coba lagi</button>
+    </Card>
+  );
 
-  const place = pos ? placeName || "lokasimu" : "Tarutung";
+  const place = DEMO_WEATHER ? DEMO_WEATHER.place : pos ? placeName || "lokasimu" : "Tarutung";
   const Icon = isRainy(data) ? CloudRain : data.code <= 1 ? Sun : Cloud;
 
   return (
-    <Card className="bg-gradient-to-br from-blue-50/50 to-white !p-5">
+    <Card className="bg-gradient-to-br from-sky-100 via-white to-amber-50 !p-5">
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-xl font-extrabold leading-snug text-slate-900">
           {weatherLabel(data)} di {place}, {Math.round(data.temp)}°C
@@ -938,7 +823,7 @@ function WeatherCard({ pos, onNavigate }) {
   );
 }
 
-function Missions({ days, setDays, today, msLeft }) {
+function Missions({ days, setDays, today, msLeft, onToast }) {
   const done = new Set(days[today] || []);
   const total = MISSIONS.reduce((a, m) => a + m.p, 0);
   const todayPts = MISSIONS.filter((m) => done.has(m.id)).reduce((a, m) => a + m.p, 0);
@@ -948,13 +833,19 @@ function Missions({ days, setDays, today, msLeft }) {
   const next = LEVELS[li + 1];
   const lvlPct = next ? Math.round(((pts - LEVELS[li].at) / (next.at - LEVELS[li].at)) * 100) : 100;
   const animG = useAnimatedNumber(g, 600);
-  const verse = VERSES[Number(today.slice(8)) % VERSES.length];
+  const tip = TIPS[Number(today.slice(8)) % TIPS.length];
 
-  const toggle = (id) => setDays((d) => {
+  const flip = (id) => setDays((d) => {
     const cur = new Set(d[today] || []);
     cur.has(id) ? cur.delete(id) : cur.add(id);
     return { ...d, [today]: [...cur] };
   });
+  const toggle = (id) => {
+    const was = done.has(id);
+    const m = MISSIONS.find((x) => x.id === id);
+    flip(id);
+    onToast?.(was ? `Misi dibatalkan: ${m.t}` : `Misi selesai! +${m.p} poin`, () => flip(id));
+  };
 
   return (
     <div className="space-y-4">
@@ -970,7 +861,7 @@ function Missions({ days, setDays, today, msLeft }) {
           <div className="h-full rounded-full" style={{ width: `${lvlPct}%`, background: EMERALD, transition: "width 900ms cubic-bezier(.22,1,.36,1)" }} />
         </div>
         <p className="mt-2 text-xs font-medium text-slate-500">
-          {next ? `${next.at - pts} poin lagi menuju ${next.name}` : "Kamu sudah mencapai puncak: Penjaga Ciptaan"}
+          {next ? `${next.at - pts} poin lagi menuju ${next.name}` : "Kamu sudah mencapai puncak: Penjaga Bumi"}
         </p>
         <div className="mt-4 flex items-start justify-between">
           {LEVELS.map((l, i) => (
@@ -986,17 +877,17 @@ function Missions({ days, setDays, today, msLeft }) {
       </Card>
 
       <div className="grid grid-cols-2 gap-3">
-        <Card className="!p-4">
+        <Card className="!p-4 !bg-amber-50">
           <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Flame size={14} color={EMERALD} /> Beruntun</p>
           <p className="mt-1 text-xl font-extrabold text-slate-900">{streak} <span className="text-sm font-semibold text-slate-400">hari</span></p>
         </Card>
-        <Card className="!p-4">
+        <Card className="!p-4 !bg-emerald-50">
           <p className="text-xs font-semibold text-slate-500">Dampak total (estimasi)</p>
           <p className="mt-1 text-xl font-extrabold" style={{ color: EMERALD }}>{Math.round(animG)} <span className="text-sm font-semibold text-slate-400">g CO₂e</span></p>
         </Card>
       </div>
 
-      <Card className="!p-4">
+      <Card className="!p-4 !bg-orange-50">
         <div className="flex items-center justify-between">
           <p className="text-sm font-extrabold text-slate-900">Misi hari ini</p>
           <p className="text-sm font-extrabold" style={{ color: EMERALD }}>{pct}%</p>
@@ -1007,28 +898,27 @@ function Missions({ days, setDays, today, msLeft }) {
         <p className="mt-2 text-xs font-medium text-slate-500">{done.size} dari {MISSIONS.length} misi selesai · misi baru muncul otomatis dalam {fmtLeft(msLeft)}</p>
       </Card>
 
-      <Card className="!p-4">
-        <p className="text-xs font-semibold text-slate-500">Renungan hari ini</p>
-        {AYAT_TB[verse.ref] && <p className="mt-2 font-serif text-[15px] italic leading-relaxed text-slate-800">“{AYAT_TB[verse.ref]}”</p>}
-        <p className={`text-[11px] font-bold ${AYAT_TB[verse.ref] ? "mt-1.5" : "mt-2"}`} style={{ color: EMERALD }}>{AYAT_TB[verse.ref] ? "— " : ""}{verse.ref} (TB)</p>
-        <p className="mt-3 text-sm leading-relaxed text-slate-600">{verse.r}</p>
+      <Card className="!p-4 !bg-sky-50">
+        <p className="text-xs font-bold text-sky-700">Fakta hari ini</p>
+        <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-700">{tip}</p>
       </Card>
 
       <div className="space-y-3">
         {MISSIONS.map(({ id, t, d, p, icon: Icon }) => {
           const on = done.has(id);
+          const col = MISSION_COLORS[id] || EMERALD;
           const isNext = !on && MISSIONS.find((m) => !done.has(m.id))?.id === id;
           return (
             <button key={id} onClick={() => toggle(id)}
               aria-pressed={on} className={`flex w-full items-center gap-4 rounded-[2rem] bg-white p-4 text-left shadow-[0_8px_30px_rgba(16,24,40,0.06)] transition-transform active:scale-[0.99] ${isNext ? "ring-2 ring-emerald-500/40" : ""}`}>
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-colors"
-                style={{ background: on ? EMERALD : "#ECFDF3" }}>
-                <Icon size={22} color={on ? "#fff" : EMERALD} />
+                style={{ background: on ? col : col + "26" }}>
+                <Icon size={22} color={on ? "#fff" : col} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className={`block text-sm font-extrabold transition-colors ${on ? "text-slate-400 line-through" : "text-slate-900"}`}>{t}</span>
                 <span className="mt-0.5 block text-xs leading-snug text-slate-500">{d}</span>
-                <span className="mt-1 block text-xs font-bold" style={{ color: EMERALD }}>+{p} poin · {id === 4 ? "dampaknya dihitung di tab Beranda" : `hemat ±${IMPACT_G[id]} g CO₂e`}</span>
+                <span className="mt-1 block text-xs font-bold" style={{ color: col }}>+{p} poin · {id === 4 ? "dampaknya dihitung di tab Beranda" : `hemat ±${IMPACT_G[id]} g CO₂e`}</span>
               </span>
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 transition-all"
                 style={{ borderColor: on ? EMERALD : "#D0D5DD", background: on ? EMERALD : "#fff" }}>
@@ -1042,7 +932,7 @@ function Missions({ days, setDays, today, msLeft }) {
       {pct === 100 && (
         <Card className="flex items-center gap-3 !bg-emerald-50">
           <ShieldCheck size={24} color={EMERALD} />
-          <p className="text-sm font-bold" style={{ color: EMERALD }}>Semua misi hari ini beres. Terima kasih sudah ikut merawat ciptaan. Misi baru hadir dalam {fmtLeft(msLeft)}.</p>
+          <p className="text-sm font-bold" style={{ color: EMERALD }}>Semua misi hari ini beres. Terima kasih sudah ikut merawat bumi. Misi baru hadir dalam {fmtLeft(msLeft)}.</p>
         </Card>
       )}
       <p className="text-center text-xs text-slate-500">Misi baru muncul otomatis tiap pergantian hari. Poin dan runtunmu tersimpan di perangkat ini.</p>
@@ -1051,18 +941,57 @@ function Missions({ days, setDays, today, msLeft }) {
 }
 
 const TITLES = { home: "Beranda", sim: "Simulator Jejak", missions: "Misi Harian", map: "Peta Ekologi" };
-const HygieneTab = memo(DigitalHygiene);
+const GeoTab = memo(GeoHealth);
 const SimulatorTab = memo(Simulator);
 const MapTab = memo(EcoMap);
 const MissionsTab = memo(Missions);
 
 /* ---------- APP SHELL ---------- */
 const TABS = [
-  { key: "home", label: "Beranda", icon: Home },
-  { key: "sim", label: "Simulasi", icon: TreePine },
-  { key: "missions", label: "Misi", icon: ListChecks },
-  { key: "map", label: "Peta Ekologi", icon: MapPin },
+  { key: "home", label: "Beranda", icon: Home, color: "#027A48" },
+  { key: "sim", label: "Simulasi", icon: TreePine, color: "#7C3AED" },
+  { key: "missions", label: "Misi", icon: ListChecks, color: "#EA580C" },
+  { key: "map", label: "Peta Ekologi", icon: MapPin, color: "#0284C7" },
 ];
+
+const TodayStrip = memo(function TodayStrip({ grams, streak, doneCount, total, onNavigate }) {
+  const tiles = [
+    { label: "Dihemat", value: `${grams} g`, sub: "CO₂e", icon: Leaf, color: "#027A48", bg: "#E6F7EE", go: "home" },
+    { label: "Beruntun", value: `${streak} hari`, sub: "tanpa putus", icon: Flame, color: "#EA580C", bg: "#FFF1E6", go: "missions" },
+    { label: "Misi", value: `${doneCount}/${total}`, sub: "hari ini", icon: ListChecks, color: "#7C3AED", bg: "#F1EBFF", go: "missions" },
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-2.5">
+      {tiles.map(({ label, value, sub, icon: Icon, color, bg, go }) => (
+        <button key={label} onClick={() => onNavigate(go)}
+          className="flex flex-col items-start gap-1 rounded-[1.5rem] p-3 text-left transition-transform active:scale-95" style={{ background: bg }}>
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white"><Icon size={16} color={color} /></span>
+          <span className="text-[11px] font-bold text-slate-500">{label}</span>
+          <span className="text-base font-extrabold leading-none" style={{ color }}>{value}</span>
+          <span className="text-[10px] font-semibold text-slate-400">{sub}</span>
+        </button>
+      ))}
+    </div>
+  );
+});
+
+function Toast({ toast, onClose }) {
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(onClose, 5000);
+    return () => clearTimeout(id);
+  }, [toast, onClose]);
+  if (!toast) return null;
+  return (
+    <div role="status" aria-live="polite"
+      className="fixed inset-x-4 bottom-28 z-[55] mx-auto flex max-w-md items-center justify-between gap-3 rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-[0_12px_30px_rgba(16,24,40,0.3)]">
+      <span className="min-w-0 truncate">{toast.msg}</span>
+      {toast.undo && (
+        <button onClick={() => { toast.undo(); onClose(); }} className="shrink-0 rounded-full bg-white/15 px-3 py-1 text-xs font-extrabold text-emerald-300">Urungkan</button>
+      )}
+    </div>
+  );
+}
 
 const AppHeader = memo(function AppHeader({ title, grams, pct }) {
   return (
@@ -1080,10 +1009,10 @@ const AppHeader = memo(function AppHeader({ title, grams, pct }) {
         </div>
       </div>
       <div className="flex gap-2">
-        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold shadow-[0_4px_14px_rgba(16,24,40,0.06)]" style={{ color: EMERALD }}>
+        <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold" style={{ color: EMERALD }}>
           {grams} g hemat
         </span>
-        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-[0_4px_14px_rgba(16,24,40,0.06)]">
+        <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">
           {pct}% misi
         </span>
       </div>
@@ -1095,12 +1024,12 @@ const TabBar = memo(function TabBar({ tab, onChange }) {
   return (
       <nav className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-md rounded-full border border-white/70 bg-white/70 p-2 shadow-[0_12px_40px_rgba(16,24,40,0.14)] backdrop-blur-xl">
         <div className="grid grid-cols-4 gap-1">
-          {TABS.map(({ key, label, icon: Icon }) => {
+          {TABS.map(({ key, label, icon: Icon, color }, i) => {
             const on = tab === key;
             return (
-              <button key={key} onClick={() => onChange(key)} aria-current={on ? "page" : undefined}
+              <button key={key} onClick={() => onChange(key)} aria-current={on ? "page" : undefined} title={`${label} (tekan ${i + 1})`} aria-keyshortcuts={String(i + 1)}
                 className="flex flex-col items-center gap-1 rounded-full py-2.5 transition-all"
-                style={{ background: on ? EMERALD : "transparent" }}>
+                style={{ background: on ? color : "transparent", boxShadow: on ? `0 6px 16px ${color}55` : "none" }}>
                 <Icon size={21} color={on ? "#fff" : "#667085"} strokeWidth={on ? 2.4 : 2} />
                 <span className={`text-[11px] font-bold ${on ? "text-white" : "text-slate-500"}`}>{label}</span>
               </button>
@@ -1117,15 +1046,16 @@ function AboutSheet({ onClose }) {
           <div role="dialog" aria-modal="true" aria-label="Tentang MyWORLD" onClick={(e) => e.stopPropagation()}
             className="mx-auto max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-white p-6 text-sm leading-relaxed text-slate-600">
             <h2 className="text-lg font-extrabold text-slate-900">Tentang MyWORLD</h2>
-            <p className="mt-1">Aplikasi kecil untuk merawat ciptaan lewat kebiasaan harian, dari kotak masuk sampai meja makan.</p>
+            <p className="mt-1">Aplikasi kecil untuk merawat bumi lewat kebiasaan harian, dari udara yang kita hirup sampai meja makan.</p>
             <h3 className="mt-4 font-extrabold text-slate-900">Privasi</h3>
-            <p>Mode Gmail hanya membaca pengirim, subjek, dan ukuran email promosi dan sosial yang berusia lebih dari 30 hari. Isi pesan tidak dibaca. Tidak ada server MyWORLD yang menyimpan datamu. Misi, poin, dan statistik hanya tersimpan di browser perangkat ini, dan hilang bila data browser dihapus. Akses Gmail bisa dicabut kapan saja lewat pengaturan keamanan akun Google.</p>
+            <p>Tidak ada login dan tidak ada akses ke data pribadimu. Semua perhitungan berjalan di browser. Tidak ada server MyWORLD yang menyimpan datamu. Misi, poin, dan statistik hanya tersimpan di browser perangkat ini, dan hilang bila data browser dihapus.</p>
             <h3 className="mt-4 font-extrabold text-slate-900">Sumber dan batas angka</h3>
-            <p>Semua angka adalah estimasi edukatif untuk menumbuhkan kesadaran, bukan audit karbon. Faktor emisi memakai rata-rata yang lazim dipakai: sekitar 4 g CO₂e per email standar (Mike Berners-Lee), serta kisaran emisi listrik dan transportasi dari rujukan umum seperti IPCC dan IEA. Hasil nyata berbeda untuk tiap orang.</p>
+            <p>Semua angka adalah estimasi edukatif untuk menumbuhkan kesadaran, bukan audit karbon. Faktor emisi memakai rata-rata yang lazim dipakai: kisaran emisi listrik dan transportasi dari rujukan umum seperti IPCC dan IEA. Hasil nyata berbeda untuk tiap orang.</p>
             <p className="mt-2">Data cuaca dan kualitas udara berasal dari Open-Meteo.com (lisensi CC BY 4.0). Angkanya hasil model, bukan sensor resmi. Nama tempat berasal dari OpenStreetMap (Nominatim), © kontributor OpenStreetMap. Koordinat lokasimu dikirim ke Open-Meteo dan OpenStreetMap hanya untuk cuaca dan nama tempat.</p>
             <h3 className="mt-4 font-extrabold text-slate-900">Pemrosesan Lokal</h3>
-            <p>Tanpa sambungan Gmail, data diproses di perangkatmu tanpa mengirim apa pun ke server. Pemindaian berkas di perangkat (foto ganda, unduhan, cache) belum bisa dilakukan dari browser dan masuk rencana pengembangan versi Android. Titik pada Peta Ekologi adalah simulasi edukatif wilayah Tapanuli Utara, bukan data sensor atau instansi resmi.</p>
-            <p className="mt-4 text-xs text-slate-500">Kutipan ayat memakai Alkitab Terjemahan Baru (TB), © Lembaga Alkitab Indonesia.</p>
+            <p>Skor risiko kesehatan dan paparan polusi dihitung di perangkatmu dari data Open-Meteo. Skornya indikatif untuk edukasi, bukan diagnosis medis. Titik pada Peta Ekologi adalah simulasi edukatif wilayah Tapanuli Utara, bukan data sensor.</p>
+            <h3 className="mt-4 font-extrabold text-slate-900">Pintasan</h3>
+            <p>Tekan 1 sampai 4 untuk pindah tab, dan Esc untuk menutup jendela ini.</p>
             <button onClick={() => onClose()} className="mt-5 w-full rounded-full py-3.5 text-base font-extrabold text-white" style={{ background: EMERALD }}>Tutup</button>
           </div>
         </div>
@@ -1142,7 +1072,6 @@ export default function App() {
     setTabState(k);
     try { window.history.replaceState(null, "", `#${k}`); } catch (e) { /* abaikan */ }
   }, []);
-  const [hyg, setHyg] = useState(loadHyg);
   const [days, setDays] = useState(loadDays);
   const { today, msLeft } = useClock();
   const [userPos, setUserPos] = useState(null);
@@ -1155,6 +1084,21 @@ export default function App() {
     );
   }, []);
   const [about, setAbout] = useState(false);
+  const [toast, setToast] = useState(null);
+  const notify = useCallback((msg, undo) => setToast({ msg, undo }), []);
+  const closeToast = useCallback(() => setToast(null), []);
+  // Pintasan keyboard: 1 sampai 4 pindah tab, Esc menutup jendela
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+      const i = Number(e.key);
+      if (i >= 1 && i <= TABS.length) setTab(TABS[i - 1].key);
+      else if (e.key === "Escape") setAbout(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setTab]);
   // Muat font Nunito dari Google Fonts
   useEffect(() => {
     if (document.getElementById("nunito-font")) return;
@@ -1167,52 +1111,37 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem(DAYS_KEY, JSON.stringify(days)); } catch (e) { /* abaikan */ }
   }, [days]);
-  useEffect(() => {
-    try { localStorage.setItem(HYG_KEY, JSON.stringify(hyg)); } catch (e) { /* abaikan */ }
-  }, [hyg]);
 
-  // Misi #4 tercentang otomatis saat total pembersihan hari ini mencapai 20 item
-  const cleanedToday = hyg.daily[today] || 0;
-  const prevCleaned = useRef(cleanedToday);
-  useEffect(() => {
-    if (cleanedToday >= 20 && prevCleaned.current < 20) {
-      const k = dayKey();
-      setDays((d) => ((d[k] || []).includes(4) ? d : { ...d, [k]: [...(d[k] || []), 4] }));
-    }
-    prevCleaned.current = cleanedToday;
-  }, [cleanedToday]);
-
-  const handleSaved = useCallback((g, kb, n) => setHyg((h) => {
-    const k = dayKey();
-    return { g: h.g + g, kb: h.kb + kb, daily: { ...h.daily, [k]: (h.daily[k] || 0) + n } };
-  }), []);
-  const { pct, missionG } = useMemo(() => {
+  const { pct, missionG, streak, doneCount } = useMemo(() => {
     const done = new Set(days[today] || []);
     const total = MISSIONS.reduce((a, m) => a + m.p, 0);
     const got = MISSIONS.filter((m) => done.has(m.id)).reduce((a, m) => a + m.p, 0);
-    return { pct: Math.round((got / total) * 100), missionG: stats(days).g };
+    const st = stats(days);
+    return { pct: Math.round((got / total) * 100), missionG: st.g, streak: st.streak, doneCount: done.size };
   }, [days, today]);
 
   return (
-    <div className="min-h-screen bg-[#F4F5F7] text-slate-900" style={{ fontFamily: "'Nunito', sans-serif" }}>
+    <div className="min-h-screen bg-[#F4F7F6] text-slate-900" style={{ fontFamily: "'Nunito', sans-serif", backgroundImage: "radial-gradient(32rem 24rem at 0% 0%, rgba(125,211,252,0.35), transparent), radial-gradient(28rem 22rem at 100% 12%, rgba(253,224,71,0.22), transparent), radial-gradient(32rem 26rem at 50% 100%, rgba(196,181,253,0.30), transparent)" }}>
 
       <div className="mx-auto max-w-md px-4 pb-36 pt-6">
-        <AppHeader title={TITLES[tab]} grams={Math.max(0, hyg.g) + missionG} pct={pct} />
+        <AppHeader title={TITLES[tab]} grams={missionG} pct={pct} />
 
         <main>
           <div hidden={tab !== "home"} className="space-y-4">
+            <TodayStrip grams={missionG} streak={streak} doneCount={doneCount} total={MISSIONS.length} onNavigate={setTab} />
             <WeatherCard pos={userPos} onNavigate={setTab} />
-            <HygieneTab freedKb={hyg.kb} savedG={hyg.g} onSaved={handleSaved} />
+            <GeoTab pos={userPos} />
           </div>
           <div hidden={tab !== "sim"}><SimulatorTab /></div>
           <div hidden={tab !== "map"}><MapTab active={tab === "map"} userPos={userPos} /></div>
-          <div hidden={tab !== "missions"}><MissionsTab days={days} setDays={setDays} today={today} msLeft={msLeft} /></div>
+          <div hidden={tab !== "missions"}><MissionsTab days={days} setDays={setDays} today={today} msLeft={msLeft} onToast={notify} /></div>
         </main>
         <button onClick={() => setAbout(true)} className="mx-auto mt-6 flex items-center gap-1.5 text-xs font-bold text-slate-500">
           <Info size={13} /> Tentang, privasi, dan sumber angka
         </button>
       </div>
 
+      <Toast toast={toast} onClose={closeToast} />
       <TabBar tab={tab} onChange={setTab} />
       {about && <AboutSheet onClose={() => setAbout(false)} />}
     </div>
