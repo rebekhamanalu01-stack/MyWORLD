@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef, useCallback, memo } from "
 import {
   Leaf, Info, Mail, Trash2, Check, Sprout, TreePine, ListChecks, RotateCcw, Flame, Award, MapPin, Wind, Waves, Layers,
   Car, Snowflake, Beef, Tv, ShoppingBag, Droplets, Bike, Sparkles, ShieldCheck,
-  CloudRain, Sun, Cloud, Home, Thermometer, Clock,
+  CloudRain, Sun, Cloud, Home, Thermometer, Clock, Bell, Moon
 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
@@ -114,7 +114,7 @@ function useGeoData(pos) {
     });
     return () => { off = true; };
   }, [lat, lng, tick]);
-  return { ...g, retry };
+  return useMemo(() => ({ ...g, retry }), [g, retry]);
 }
 
 const LEVEL = (s) => (s < 35 ? { t: "Rendah", cls: "bg-emerald-100 text-emerald-700", bar: "#16A34A" } : s < 65 ? { t: "Waspada", cls: "bg-amber-100 text-amber-700", bar: "#F59E0B" } : { t: "Tinggi", cls: "bg-rose-100 text-rose-700", bar: "#E11D48" });
@@ -129,20 +129,6 @@ function riskScores(d) {
   ];
 }
 
-const COMMUTE = {
-  motor: { n: "Motor", e: 1, co2: 0.1, sp: 30 },
-  mobil: { n: "Mobil", e: 0.35, co2: 0.19, sp: 25 },
-  bus: { n: "Angkot/Bus", e: 0.6, co2: 0.05, sp: 20 },
-  sepeda: { n: "Sepeda/Jalan", e: 1, co2: 0, sp: 10 },
-};
-const MASK_F = [1, 0.6, 0.2];
-const MASK_N = ["Tanpa masker", "Masker kain", "Masker medis/N95"];
-const PRESETS = [
-  { n: "Dewasa Sehat", v: 1, set: { km: 12, out: 3 } },
-  { n: "Sensitif Polusi", v: 1.6, set: { km: 8, out: 2 } },
-  { n: "Mobilitas Tinggi", v: 1.2, set: { km: 40, out: 5 } },
-];
-
 function goldenWindow(d) {
   const T = d.hourly.time, rain = d.hourly.rain, tmp = d.hourly.temp, ai = d.hourly.aqi;
   const N = Math.min(12, T.length - 2);
@@ -155,32 +141,51 @@ function goldenWindow(d) {
   if (!best) return null;
   const i = best.i, h0 = Number(T[i].slice(11, 13));
   const r = Math.round(((rain[i] ?? 0) + (rain[i + 1] ?? 0)) / 2);
-  return { label: `${pad2(h0)}:00–${pad2((h0 + 2) % 24)}:00`, detail: (ai ? `AQI rata-rata ${Math.round(((ai[i] ?? 0) + (ai[i + 1] ?? 0)) / 2)} · ` : "") + `peluang hujan ${r}%` };
+  return { i, label: `${pad2(h0)}:00–${pad2((h0 + 2) % 24)}:00`, detail: (ai ? `AQI rata-rata ${Math.round(((ai[i] ?? 0) + (ai[i + 1] ?? 0)) / 2)} · ` : "") + `peluang hujan ${r}%` };
 }
+const AQI_DOT = (v) => (v == null ? "#CBD5E1" : v <= 40 ? "#16A34A" : v <= 60 ? "#F59E0B" : "#E11D48");
 
-const GEO_SLIDERS = [
-  { k: "km", label: "Jarak tempuh harian", unit: "km/hari", max: 80, step: 1, icon: Car, c: "#0EA5E9" },
-  { k: "out", label: "Aktivitas luar ruang", unit: "jam/hari", max: 12, step: 0.5, icon: Sun, c: "#F59E0B" },
-  { k: "ac", label: "Penggunaan AC", unit: "jam/hari", max: 16, step: 0.5, icon: Snowflake, c: "#06B6D4" },
-  { k: "mask", label: "Proteksi masker", unit: "", max: 2, step: 1, icon: ShieldCheck, c: "#027A48" },
-];
+const ForecastCard = memo(function ForecastCard({ data }) {
+  const win = useMemo(() => goldenWindow(data), [data]);
+  const { time, rain, temp, aqi } = data.hourly;
+  const n = Math.min(12, time.length);
+  return (
+    <Card className="bg-gradient-to-br from-amber-50 via-white to-sky-50">
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white shadow-[0_4px_14px_rgba(16,24,40,0.08)]"><Clock size={20} color="#D97706" /></span>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-slate-500">Prediksi 12 jam ke depan</p>
+          <h3 className="text-xl font-extrabold leading-tight text-slate-900">{win ? win.label : "Data belum tersedia"}</h3>
+        </div>
+        {win && <span className="ml-auto shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-700">Jam terbaik</span>}
+      </div>
+      {win && <p className="mt-2 text-xs font-medium leading-relaxed text-slate-500">{win.detail}. Berangkat di jam ini membuat paparan polusi dan peluang kehujanan lebih kecil.</p>}
+      <div className="-mx-1 mt-4 flex gap-2 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {time.slice(0, n).map((tm, i) => {
+          const h = Number(tm.slice(11, 13)), r = Math.round(rain[i] ?? 0), inWin = win && (i === win.i || i === win.i + 1);
+          const day = h >= 6 && h < 18;
+          const Icon = r >= 50 ? CloudRain : day ? Sun : Moon;
+          const c = r >= 50 ? "#2563EB" : day ? "#F59E0B" : "#7C3AED";
+          return (
+            <div key={tm} className={`flex w-[3.6rem] shrink-0 flex-col items-center gap-1 rounded-[1.5rem] px-1 py-3 ${inWin ? "bg-white shadow-[0_6px_16px_rgba(2,122,72,0.18)] ring-2 ring-emerald-500" : "bg-white/70"}`}>
+              <span className="text-[11px] font-bold text-slate-500">{pad2(h)}:00</span>
+              <Icon size={18} color={c} />
+              <span className="text-sm font-extrabold text-slate-900">{Math.round(temp[i])}°</span>
+              <span className="h-1.5 w-8 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full bg-sky-500" style={{ width: `${clamp(r)}%` }} /></span>
+              <span className="text-[10px] font-semibold text-slate-400">{r}%</span>
+              <span className="h-2 w-2 rounded-full" style={{ background: AQI_DOT(aqi ? aqi[i] : null) }} />
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] leading-relaxed text-slate-400">Batang biru: peluang hujan. Titik: kualitas udara (hijau baik, kuning sedang, merah tidak sehat).</p>
+    </Card>
+  );
+});
 
-function GeoHealth({ pos }) {
-  const { status, data, retry } = useGeoData(pos);
-  const [S, setS] = useState({ preset: 0, mode: "motor", km: 12, out: 3, ac: 5, mask: 1 });
+function GeoHealth({ geo, pos }) {
+  const { status, data, retry } = geo;
   const place = DEMO_WEATHER ? DEMO_WEATHER.place : pos ? "lokasimu" : "Tarutung";
-
-  const sim = useMemo(() => {
-    if (!data) return null;
-    const m = COMMUTE[S.mode];
-    const pm = data.aq ? data.aq.pm25 : null;
-    const exposed = (S.km / m.sp) * m.e + S.out;
-    return {
-      pm: pm == null ? null : Math.round(pm * exposed * MASK_F[S.mask] * PRESETS[S.preset].v),
-      co2: (S.km * m.co2 + S.ac * 0.87).toFixed(1),
-      win: goldenWindow(data),
-    };
-  }, [data, S]);
 
   if (status === "loading") return <Card className="!p-4"><p className="text-xs font-medium text-slate-500">Memuat radar kesehatan…</p></Card>;
   if (status === "error") return (
@@ -237,58 +242,7 @@ function GeoHealth({ pos }) {
         <p className="mt-3 text-[11px] text-slate-400">Skor 0–100 bersifat indikatif untuk edukasi, bukan diagnosis medis.</p>
       </Card>
 
-      <Card className="bg-gradient-to-br from-violet-50 via-white to-sky-50">
-        <h3 className="text-sm font-extrabold text-slate-900">Simulator perjalanan sehat</h3>
-        <p className="mt-0.5 text-xs text-slate-500">Perkirakan paparan polusi dari cara kamu bepergian.</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {PRESETS.map((p, i) => {
-            const on = S.preset === i;
-            return (
-              <button key={p.n} aria-pressed={on} onClick={() => setS((x) => ({ ...x, preset: i, ...p.set }))}
-                className={`rounded-full px-3.5 py-2 text-xs font-bold transition-colors ${on ? "text-white" : "border border-slate-200 bg-white text-slate-600"}`}
-                style={on ? { background: EMERALD } : undefined}>{p.n}</button>
-            );
-          })}
-        </div>
-        <div className="mt-3 grid grid-cols-4 gap-1 rounded-full bg-slate-100 p-1">
-          {Object.entries(COMMUTE).map(([k, m]) => (
-            <button key={k} onClick={() => setS((x) => ({ ...x, mode: k }))}
-              className={`rounded-full px-1 py-2 text-[11px] font-bold transition-all ${S.mode === k ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}>{m.n}</button>
-          ))}
-        </div>
-        <div className="mt-4 space-y-4">
-          {GEO_SLIDERS.map(({ k, label, unit, max, step, icon: Icon, c }) => (
-            <div key={k}>
-              <div className="mb-2 flex items-center justify-between">
-                <span className="flex items-center gap-2 text-sm font-bold text-slate-800">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full" style={{ background: c + "26" }}><Icon size={16} color={c} /></span>
-                  {label}
-                </span>
-                <span className="text-sm font-extrabold text-slate-900">{k === "mask" ? MASK_N[S.mask] : <>{S[k]} <span className="text-xs font-medium text-slate-400">{unit}</span></>}</span>
-              </div>
-              <input type="range" min="0" max={max} step={step} value={S[k]} aria-label={label}
-                onChange={(e) => setS((x) => ({ ...x, [k]: Number(e.target.value) }))}
-                className="h-2 w-full cursor-pointer" style={{ accentColor: c }} />
-            </div>
-          ))}
-        </div>
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <Card className="!p-4 !bg-sky-50">
-            <p className="text-xs font-semibold text-slate-500">PM₂.₅ terhirup / hari</p>
-            <p className="mt-1 text-xl font-extrabold text-slate-900">{sim.pm == null ? "–" : sim.pm} <span className="text-sm font-semibold text-slate-400">µg</span></p>
-          </Card>
-          <Card className="!p-4 !bg-emerald-50">
-            <p className="text-xs font-semibold text-slate-500">Emisi perjalanan & AC</p>
-            <p className="mt-1 text-xl font-extrabold" style={{ color: EMERALD }}>{sim.co2} <span className="text-sm font-semibold text-slate-400">kg CO₂</span></p>
-          </Card>
-          <Card className="col-span-2 !p-4 !bg-amber-50">
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500"><Clock size={14} color="#D97706" /> Jam berangkat terbaik (12 jam ke depan)</p>
-            <p className="mt-1 text-xl font-extrabold text-slate-900">{sim.win ? sim.win.label : "Data belum tersedia"}</p>
-            {sim.win && <p className="text-xs font-medium text-slate-500">{sim.win.detail}</p>}
-          </Card>
-        </div>
-        <p className="mt-3 text-[11px] text-slate-400">Estimasi edukatif: paparan dihitung dari PM₂.₅ saat ini, durasi, moda, dan masker.</p>
-      </Card>
+      <ForecastCard data={data} />
     </div>
   );
 }
@@ -692,7 +646,7 @@ function stats(days) {
 /* ---------- CUACA (Open-Meteo, tanpa API key) ---------- */
 // Cuaca dan kualitas udara berasal dari model Open-Meteo, bukan sensor resmi.
 // Tampilan tetap untuk demo/tangkapan layar. Ubah menjadi null agar kartu memakai data cuaca langsung.
-const DEMO_WEATHER = null;
+const DEMO_WEATHER = { place: "Sipahutar", data: { temp: 26, rain: 0, code: 0, uv: 6, aqi: 35 } };
 
 function useWeather(pos) {
   const lat = pos ? pos.lat : DEFAULT_CENTER[0];
@@ -993,7 +947,94 @@ function Toast({ toast, onClose }) {
   );
 }
 
-const AppHeader = memo(function AppHeader({ title, grams, pct }) {
+/* ---------- NOTIFIKASI: CUACA, UDARA, DAN RUNTUNAN MISI ---------- */
+const NOTIF_KEY = "myworld_notif_v1";
+function loadNotif() {
+  try {
+    const j = JSON.parse(localStorage.getItem(NOTIF_KEY));
+    return { read: j?.read || {}, shown: j?.shown || {}, browser: !!j?.browser };
+  } catch (e) { return { read: {}, shown: {}, browser: false }; }
+}
+const MILESTONES = [100, 60, 30, 14, 7, 3];
+
+function buildAlerts({ data, place, streak, doneCount, msLeft, today }) {
+  const out = [];
+  if (data) {
+    const aqi = data.aq && data.aq.aqi != null ? Math.round(data.aq.aqi) : null;
+    if (aqi != null && aqi > 60) out.push({ id: `udara-${today}`, kind: "udara", level: "bad", title: "Kualitas udara buruk", short: "Pakai masker saat keluar rumah.", body: `Udara di ${place} tidak sehat (AQI ${aqi}). Pakai masker saat keluar rumah dan kurangi aktivitas di luar ruangan.` });
+    else if (aqi != null && aqi > 40) out.push({ id: `udara-${today}`, kind: "udara", level: "mid", title: "Kualitas udara sedang", short: "Kelompok sensitif sebaiknya pakai masker.", body: `AQI di ${place} ${aqi}. Penderita asma, anak, dan lansia disarankan memakai masker saat di luar ruangan.` });
+    if (data.cur.app >= 35 || data.cur.temp >= 32) out.push({ id: `panas-${today}`, kind: "panas", level: "mid", title: "Cuaca terik", short: "Minum cukup air dan hindari siang hari.", body: `Suhu terasa ${Math.round(data.cur.app)}°C di ${place}. Minum cukup air dan hindari aktivitas di luar pada siang hari.` });
+    const rain = data.hourly.rain[0] ?? 0;
+    if (rain >= 60) out.push({ id: `hujan-${today}`, kind: "hujan", level: "mid", title: "Kemungkinan hujan", short: "Bawa payung atau jas hujan.", body: `Peluang hujan ${Math.round(rain)}% di ${place}. Bawa payung atau jas hujan, dan tampung airnya untuk menyiram tanaman.` });
+  }
+  if (doneCount > 0) {
+    if (MILESTONES.includes(streak)) out.push({ id: `runtun-capai-${streak}`, kind: "runtun", level: "ok", title: `Runtunan ${streak} hari tercapai`, short: "Pertahankan terus.", body: `Kamu menyelesaikan misi ${streak} hari berturut-turut. Pertahankan, ya.` });
+    else out.push({ id: `runtun-jaga-${today}`, kind: "runtun", level: "ok", title: `Runtunan ${streak} hari terjaga`, short: "Satu misi hari ini sudah beres.", body: "Satu misi hari ini sudah beres. Lanjutkan besok untuk menambah runtunanmu." });
+  } else if (streak > 0) {
+    out.push({ id: `runtun-risiko-${today}`, kind: "runtun", level: "bad", title: `Runtunan ${streak} hari terancam putus`, short: "Selesaikan satu misi hari ini.", body: `Selesaikan satu misi hari ini agar runtunanmu tidak putus. Sisa waktu ${fmtLeft(msLeft)}.` });
+  } else {
+    out.push({ id: `runtun-mulai-${today}`, kind: "runtun", level: "mid", title: "Mulai runtunanmu", short: "Selesaikan satu misi hari ini.", body: "Selesaikan satu misi hari ini untuk memulai runtunan harianmu." });
+  }
+  const rank = { bad: 0, mid: 1, ok: 2 };
+  return out.sort((a, b) => rank[a.level] - rank[b.level]);
+}
+
+const ALERT_ICON = { udara: [ShieldCheck, "#0EA5E9"], panas: [Thermometer, "#F97316"], hujan: [CloudRain, "#2563EB"], runtun: [Flame, "#EA580C"] };
+const LEVEL_PILL = { bad: ["Penting", "bg-rose-100 text-rose-700"], mid: ["Perhatian", "bg-amber-100 text-amber-700"], ok: ["Info", "bg-emerald-100 text-emerald-700"] };
+
+function NotifSheet({ items, read, browser, perm, onToggleBrowser, onReadAll, onTest, onClose }) {
+  const unsupported = typeof Notification === "undefined";
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end bg-black/40" onClick={() => onClose()}>
+      <div role="dialog" aria-modal="true" aria-label="Notifikasi" onClick={(e) => e.stopPropagation()}
+        className="mx-auto max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-[2rem] bg-white p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-extrabold text-slate-900">Notifikasi</h2>
+          <button onClick={onReadAll} className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">Tandai semua dibaca</button>
+        </div>
+        <div className="mt-4 space-y-2.5">
+          {items.map((a) => {
+            const [Icon, c] = ALERT_ICON[a.kind], [lt, lc] = LEVEL_PILL[a.level], unread = !read[a.id];
+            return (
+              <div key={a.id} className="flex gap-3 rounded-[1.5rem] bg-slate-50 p-3.5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ background: c + "26" }}><Icon size={18} color={c} /></span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-extrabold text-slate-900">{a.title}</p>
+                    {unread && <span aria-label="belum dibaca" className="h-2 w-2 shrink-0 rounded-full bg-rose-500" />}
+                  </div>
+                  <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{a.body}</p>
+                  <span className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${lc}`}>{lt}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-5 rounded-[1.5rem] border border-slate-200 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-extrabold text-slate-900">Notifikasi di peramban</p>
+              <p className="text-xs text-slate-500">
+                {unsupported ? "Peramban ini belum mendukung notifikasi sistem. Pemberitahuan tetap tampil di sini."
+                  : perm === "denied" ? "Izin diblokir. Ubah di pengaturan situs pada peramban."
+                  : "Muncul sebagai pemberitahuan sistem saat MyWORLD terbuka."}
+              </p>
+            </div>
+            <button role="switch" aria-checked={browser} aria-label="Notifikasi di peramban" disabled={unsupported || perm === "denied"} onClick={onToggleBrowser}
+              className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-40 ${browser ? "" : "bg-slate-300"}`} style={browser ? { background: EMERALD } : undefined}>
+              <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${browser ? "left-[1.4rem]" : "left-0.5"}`} />
+            </button>
+          </div>
+          <button onClick={onTest} className="mt-3 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-700">Coba notifikasi</button>
+        </div>
+        <p className="mt-3 text-[11px] leading-relaxed text-slate-400">Semua dihitung di perangkatmu dari data cuaca dan catatan misi. Tanpa server, tanpa akun.</p>
+        <button onClick={() => onClose()} className="mt-4 w-full rounded-full py-3.5 text-base font-extrabold text-white" style={{ background: EMERALD }}>Tutup</button>
+      </div>
+    </div>
+  );
+}
+
+const AppHeader = memo(function AppHeader({ title, grams, pct, unread, onBell }) {
   return (
     <header className="mb-5 flex items-center justify-between">
       <div className="flex min-w-0 items-center gap-2.5">
@@ -1008,13 +1049,20 @@ const AppHeader = memo(function AppHeader({ title, grams, pct }) {
           <p className="text-xs font-medium text-slate-500">{title}</p>
         </div>
       </div>
-      <div className="flex gap-2">
-        <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold" style={{ color: EMERALD }}>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <span className="rounded-full bg-emerald-100 px-2.5 py-1.5 text-[11px] font-bold" style={{ color: EMERALD }}>
           {grams} g hemat
         </span>
-        <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">
+        <span className="rounded-full bg-amber-100 px-2.5 py-1.5 text-[11px] font-bold text-amber-800">
           {pct}% misi
         </span>
+        <button onClick={onBell} aria-label={`Notifikasi, ${unread} belum dibaca`}
+          className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_4px_14px_rgba(16,24,40,0.08)] transition-transform active:scale-95">
+          <Bell size={17} />
+          {unread > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-extrabold text-white">{unread}</span>
+          )}
+        </button>
       </div>
     </header>
   );
@@ -1053,7 +1101,9 @@ function AboutSheet({ onClose }) {
             <p>Semua angka adalah estimasi edukatif untuk menumbuhkan kesadaran, bukan audit karbon. Faktor emisi memakai rata-rata yang lazim dipakai: kisaran emisi listrik dan transportasi dari rujukan umum seperti IPCC dan IEA. Hasil nyata berbeda untuk tiap orang.</p>
             <p className="mt-2">Data cuaca dan kualitas udara berasal dari Open-Meteo.com (lisensi CC BY 4.0). Angkanya hasil model, bukan sensor resmi. Nama tempat berasal dari OpenStreetMap (Nominatim), © kontributor OpenStreetMap. Koordinat lokasimu dikirim ke Open-Meteo dan OpenStreetMap hanya untuk cuaca dan nama tempat.</p>
             <h3 className="mt-4 font-extrabold text-slate-900">Pemrosesan Lokal</h3>
-            <p>Skor risiko kesehatan dan paparan polusi dihitung di perangkatmu dari data Open-Meteo. Skornya indikatif untuk edukasi, bukan diagnosis medis. Titik pada Peta Ekologi adalah simulasi edukatif wilayah Tapanuli Utara, bukan data sensor.</p>
+            <p>Skor risiko kesehatan dihitung di perangkatmu dari data Open-Meteo. Skornya indikatif untuk edukasi, bukan diagnosis medis. Titik pada Peta Ekologi adalah simulasi edukatif wilayah Tapanuli Utara, bukan data sensor.</p>
+            <h3 className="mt-4 font-extrabold text-slate-900">Notifikasi</h3>
+            <p>Peringatan cuaca, kualitas udara, dan runtunan misi dihitung di perangkatmu dari data Open-Meteo dan catatan misi. Notifikasi peramban hanya aktif bila kamu mengizinkannya dan hanya muncul saat MyWORLD terbuka.</p>
             <h3 className="mt-4 font-extrabold text-slate-900">Pintasan</h3>
             <p>Tekan 1 sampai 4 untuk pindah tab, dan Esc untuk menutup jendela ini.</p>
             <button onClick={() => onClose()} className="mt-5 w-full rounded-full py-3.5 text-base font-extrabold text-white" style={{ background: EMERALD }}>Tutup</button>
@@ -1084,6 +1134,7 @@ export default function App() {
     );
   }, []);
   const [about, setAbout] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [toast, setToast] = useState(null);
   const notify = useCallback((msg, undo) => setToast({ msg, undo }), []);
   const closeToast = useCallback(() => setToast(null), []);
@@ -1094,7 +1145,7 @@ export default function App() {
       if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
       const i = Number(e.key);
       if (i >= 1 && i <= TABS.length) setTab(TABS[i - 1].key);
-      else if (e.key === "Escape") setAbout(false);
+      else if (e.key === "Escape") { setAbout(false); setNotifOpen(false); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -1120,17 +1171,53 @@ export default function App() {
     return { pct: Math.round((got / total) * 100), missionG: st.g, streak: st.streak, doneCount: done.size };
   }, [days, today]);
 
+  const geo = useGeoData(userPos);
+  const place = DEMO_WEATHER ? DEMO_WEATHER.place : userPos ? "lokasimu" : "Tarutung";
+  const alerts = useMemo(() => buildAlerts({ data: geo.data, place, streak, doneCount, msLeft, today }), [geo.data, place, streak, doneCount, msLeft, today]);
+  const [np, setNp] = useState(loadNotif);
+  const npRef = useRef(np);
+  npRef.current = np;
+  const [perm, setPerm] = useState(typeof Notification !== "undefined" ? Notification.permission : "denied");
+  useEffect(() => {
+    try { localStorage.setItem(NOTIF_KEY, JSON.stringify(np)); } catch (e) { /* abaikan */ }
+  }, [np]);
+  const unread = alerts.filter((a) => !np.read[a.id]).length;
+  const sysNotify = useCallback((title, body, tag) => {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    try { new Notification(title, { body, tag }); } catch (e) { /* abaikan */ }
+  }, []);
+  // Umumkan peringatan baru satu kali: pemberitahuan singkat di layar, dan notifikasi sistem bila diizinkan
+  useEffect(() => {
+    const fresh = alerts.filter((a) => a.level !== "ok" && !npRef.current.shown[a.id]);
+    if (!fresh.length) return;
+    setNp((p) => ({ ...p, shown: { ...Object.fromEntries(Object.entries(p.shown).slice(-60)), ...Object.fromEntries(fresh.map((a) => [a.id, 1])) } }));
+    const top = fresh.find((a) => a.level === "bad") || fresh[0];
+    notify(`${top.title}. ${top.short}`);
+    if (npRef.current.browser) fresh.forEach((a) => sysNotify(a.title, a.body, a.id));
+  }, [alerts, notify, sysNotify]);
+  const readAll = useCallback(() => setNp((p) => ({ ...p, read: { ...p.read, ...Object.fromEntries(alerts.map((a) => [a.id, 1])) } })), [alerts]);
+  const openBell = useCallback(() => { setNotifOpen(true); setAbout(false); }, []);
+  const toggleBrowser = useCallback(() => {
+    if (npRef.current.browser) { setNp((p) => ({ ...p, browser: false })); return; }
+    if (typeof Notification === "undefined") return;
+    Notification.requestPermission().then((r) => { setPerm(r); setNp((p) => ({ ...p, browser: r === "granted" })); });
+  }, []);
+  const testNotif = useCallback(() => {
+    notify("Kualitas udara buruk. Contoh notifikasi: pakai masker saat keluar rumah.");
+    if (npRef.current.browser) sysNotify("Kualitas udara buruk", "Contoh notifikasi: pakai masker saat beraktivitas di luar ruangan.", "uji");
+  }, [notify, sysNotify]);
+
   return (
     <div className="min-h-screen bg-[#F4F7F6] text-slate-900" style={{ fontFamily: "'Nunito', sans-serif", backgroundImage: "radial-gradient(32rem 24rem at 0% 0%, rgba(125,211,252,0.35), transparent), radial-gradient(28rem 22rem at 100% 12%, rgba(253,224,71,0.22), transparent), radial-gradient(32rem 26rem at 50% 100%, rgba(196,181,253,0.30), transparent)" }}>
 
       <div className="mx-auto max-w-md px-4 pb-36 pt-6">
-        <AppHeader title={TITLES[tab]} grams={missionG} pct={pct} />
+        <AppHeader title={TITLES[tab]} grams={missionG} pct={pct} unread={unread} onBell={openBell} />
 
         <main>
           <div hidden={tab !== "home"} className="space-y-4">
             <TodayStrip grams={missionG} streak={streak} doneCount={doneCount} total={MISSIONS.length} onNavigate={setTab} />
             <WeatherCard pos={userPos} onNavigate={setTab} />
-            <GeoTab pos={userPos} />
+            <GeoTab geo={geo} pos={userPos} />
           </div>
           <div hidden={tab !== "sim"}><SimulatorTab /></div>
           <div hidden={tab !== "map"}><MapTab active={tab === "map"} userPos={userPos} /></div>
@@ -1144,6 +1231,7 @@ export default function App() {
       <Toast toast={toast} onClose={closeToast} />
       <TabBar tab={tab} onChange={setTab} />
       {about && <AboutSheet onClose={() => setAbout(false)} />}
+      {notifOpen && <NotifSheet items={alerts} read={np.read} browser={np.browser} perm={perm} onToggleBrowser={toggleBrowser} onReadAll={readAll} onTest={testNotif} onClose={() => setNotifOpen(false)} />}
     </div>
   );
 }
